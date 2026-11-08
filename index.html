@@ -1,0 +1,2185 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Visuels d’actualité au format Facebook, Instagram et statut WhatsApp : six modèles, identité du média, export JPG 1080 px.">
+<meta name="theme-color" content="#C9282E">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}</style>
+<title>Générateur Alerte Info</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500..800;1,6..72,500..800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Régie : l'aperçu tient la colonne de gauche comme un écran de contrôle ; à droite, les blocs « par post » en rouge, l'identité du média (réglée une fois) en gris. */
+:root {
+  --paper: #F0EDED;
+  --panel: #FFFFFF;
+  --field: #FFFFFF;
+  --ink: #1D1718;
+  --muted: #6D6264;
+  --line: #E2DADB;
+  --line-strong: #CBC1C3;
+  --well: #E2DCDD;
+  --scrim: rgba(29, 23, 24, 0.55);
+  --accent: #C9282E;
+  --accent-hover: #AD1F25;
+  --on-accent: #FFFFFF;
+  --warn: #965800;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-cond: "Anton", Impact, "Arial Narrow", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #141011;
+    --panel: #1D1819;
+    --field: #171314;
+    --ink: #F2ECED;
+    --muted: #A59A9C;
+    --line: #2F2729;
+    --line-strong: #4A3F41;
+    --well: #0B0909;
+    --scrim: rgba(0, 0, 0, 0.72);
+    --accent: #EE474D;
+    --accent-hover: #FF5F64;
+    --on-accent: #1B0A0B;
+    --warn: #F0B352;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #141011;
+  --panel: #1D1819;
+  --field: #171314;
+  --ink: #F2ECED;
+  --muted: #A59A9C;
+  --line: #2F2729;
+  --line-strong: #4A3F41;
+  --well: #0B0909;
+  --scrim: rgba(0, 0, 0, 0.72);
+  --accent: #EE474D;
+  --accent-hover: #FF5F64;
+  --on-accent: #1B0A0B;
+  --warn: #F0B352;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 15px/1.5 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-bottom: 20px; }
+.mark {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font: 800 27px/1 var(--font-display);
+  font-stretch: 75%;
+  letter-spacing: 0.01em;
+}
+.tag {
+  display: inline-block;
+  padding: 7px 9px 6px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 800 18px/1 var(--font-display);
+  font-stretch: 100%;
+  letter-spacing: -0.005em;
+}
+.top p { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.desk { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (min-width: 900px) {
+  .desk { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 28px; }
+  .stage { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+}
+
+.stage { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.stage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.stage-bar .seg { flex: 1 1 250px; }
+.monitor {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  background: var(--well);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.screen {
+  --ar: 0.8;
+  position: relative;
+  width: min(100%, calc(60vh * var(--ar)));
+  max-width: 100%;
+  aspect-ratio: var(--ar);
+}
+.screen canvas { display: block; width: 100%; height: 100%; }
+.screen.drop { outline: 3px dashed var(--accent); outline-offset: 5px; }
+@media (pointer: fine) {
+  .screen.has-photo canvas { cursor: grab; }
+  .screen.dragging canvas { cursor: grabbing; }
+}
+.guides { position: absolute; inset: 0; pointer-events: none; }
+.guides .safe { position: absolute; border: 1.5px dashed rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.guides .zone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(225, 38, 45, 0.24);
+  color: #FFFFFF;
+  font: 600 11px/1.2 var(--font-mono);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font: 500 12px/1.4 var(--font-mono);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.readout .warn { color: var(--warn); }
+.actions { display: flex; align-items: center; gap: 12px; }
+.actions .btn.primary { flex: 1 1 auto; }
+.kbd { font: 500 12px/1 var(--font-mono); color: var(--muted); white-space: nowrap; }
+.status { margin: 0; min-height: 1.45em; font-size: 14px; color: var(--muted); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 700 15px/1 var(--font-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-size: 16px; min-height: 50px; }
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn svg { flex: none; }
+.btn:focus-visible,
+.sr-only:focus-visible + .btn { outline: 2px solid var(--accent); outline-offset: 2px; }
+.linkish {
+  padding: 6px 2px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: 600 14px/1 var(--font-body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.linkish:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.controls { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  padding: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.eyebrow {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 800 13px/1 var(--font-display);
+  font-stretch: 75%;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.eyebrow::before { content: ""; width: 8px; height: 8px; background: currentColor; }
+.group.kept .eyebrow { color: var(--muted); }
+
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font: 650 14px/1.2 var(--font-body);
+}
+.label small,
+.count { font: 500 12px/1 var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.hint { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.hint code { font: 500 12px/1 var(--font-mono); color: var(--ink); }
+.only-fine { display: none; }
+@media (pointer: fine) { .only-fine { display: block; } }
+
+input[type="text"],
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--field);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  font: 400 16px/1.4 var(--font-body);
+}
+input::placeholder,
+textarea::placeholder { color: var(--muted); opacity: 1; }
+textarea { resize: vertical; }
+#title { min-height: 7.6em; font-weight: 550; }
+#caption { min-height: 9.5em; font-size: 14px; line-height: 1.5; }
+input[type="text"]:focus-visible,
+textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+.file-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.file-name {
+  flex: 1 1 120px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 12px/1.3 var(--font-mono);
+  color: var(--muted);
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  min-height: 34px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  font: 600 13px/1 var(--font-body);
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.seg label { position: relative; display: block; min-width: 0; }
+.seg label + label { border-left: 1px solid var(--line-strong); }
+.seg input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.seg span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 46px;
+  padding: 6px 4px;
+  font: 650 14px/1.1 var(--font-body);
+  text-align: center;
+}
+.seg small { font: 500 11px/1 var(--font-mono); color: var(--muted); }
+.seg input:checked + span { background: var(--ink); color: var(--panel); }
+.seg input:checked + span small { color: var(--line-strong); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -4px; }
+.seg .f-grotesk { font-weight: 800; }
+.seg .f-condensed { font: 400 15px/1 var(--font-cond); letter-spacing: 0.02em; }
+.seg .f-serif { font: 700 16px/1 var(--font-serif); }
+
+.tpls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
+.tpl { position: relative; display: flex; flex-direction: column; gap: 7px; min-width: 0; cursor: pointer; }
+.tpl input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+.tpl canvas { display: block; width: 100%; height: auto; border-radius: 3px; background: var(--well); box-shadow: 0 0 0 1px var(--line); }
+.tpl input:checked ~ canvas,
+.tpl input:focus-visible ~ canvas { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent); }
+.tpl span { font: 650 13px/1.2 var(--font-body); }
+.tpl input:checked ~ span { color: var(--accent); }
+.tpl-desc { margin: 0; font-size: 13px; color: var(--muted); }
+
+.swatches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.swatch span { font: 650 13px/1.2 var(--font-body); }
+.swatch code { font: 500 11px/1 var(--font-mono); color: var(--muted); }
+input[type="color"] { width: 100%; height: 34px; padding: 0; border: 0; background: none; cursor: pointer; }
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: 1px solid var(--line-strong); border-radius: 3px; }
+input[type="color"]::-moz-color-swatch { border: 1px solid var(--line-strong); border-radius: 3px; }
+input[type="color"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 14px; }
+@media (max-width: 480px) { .two { grid-template-columns: minmax(0, 1fr); } }
+
+.ranges { display: flex; flex-direction: column; gap: 10px; }
+.range {
+  display: grid;
+  grid-template-columns: 6.6rem minmax(0, 1fr) 3.4rem;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.25;
+}
+.range output { font: 500 12px/1 var(--font-mono); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; margin: 0; accent-color: var(--accent); }
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  font: 600 14px/1.3 var(--font-body);
+  cursor: pointer;
+}
+.toggle input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.toggle small { font: 500 12px/1 var(--font-mono); color: var(--muted); }
+
+details.kit { border-top: 1px solid var(--line); padding-top: 14px; }
+details.kit summary { cursor: pointer; font: 650 14px/1.3 var(--font-body); }
+details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kit-body { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.kit-body textarea { font: 500 12px/1.4 var(--font-mono); }
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: var(--scrim);
+}
+.sheet-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.sheet-card h2 { margin: 0; font: 800 22px/1.1 var(--font-display); font-stretch: 75%; }
+.sheet-card img { display: block; max-width: 100%; max-height: 58vh; width: auto; height: auto; margin: 0 auto; }
+.sheet-card p { margin: 0; font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <h1 class="mark">Générateur <span class="tag">Alerte Info.</span></h1>
+    <p>Six modèles de visuels d’actualité, l’identité de ton média, et un export en 1080&nbsp;px prêt à publier.</p>
+  </header>
+
+  <main class="desk">
+    <section class="stage" aria-label="Aperçu du visuel">
+      <div class="stage-bar">
+        <div class="seg" role="radiogroup" aria-label="Format">
+          <label><input type="radio" name="format" id="fmt-feed" value="feed"><span>4:5<small>Fil</small></span></label>
+          <label><input type="radio" name="format" id="fmt-square" value="square"><span>1:1<small>Carré</small></span></label>
+          <label><input type="radio" name="format" id="fmt-story" value="story"><span>9:16<small>Statut, story</small></span></label>
+        </div>
+        <label class="toggle" for="guides-on"><input type="checkbox" id="guides-on">Repères</label>
+      </div>
+      <div class="monitor">
+        <div class="screen" id="screen">
+          <canvas id="out" width="1080" height="1350" role="img" aria-label="Aperçu du visuel généré"></canvas>
+          <div class="guides" id="guides" hidden>
+            <div class="zone" id="g-top">Zone couverte par l’appli</div>
+            <div class="zone" id="g-bot">Zone couverte par l’appli</div>
+            <div class="safe" id="g-safe"></div>
+          </div>
+        </div>
+      </div>
+      <div class="readout">
+        <span id="dims">1080 × 1350 px · 4:5</span>
+        <span id="fit-info"></span>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn primary" id="download">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5V13M6 9l4 4 4-4M3.5 12.5v3a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3"/></svg>
+          <span id="download-label">Télécharger l’image</span>
+        </button>
+        <button type="button" class="btn" id="share" hidden>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12.5V3.5M6.5 7L10 3.5 13.5 7M6 9.5H4.5a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H14"/></svg>
+          Partager
+        </button>
+        <span class="kbd only-fine" id="kbd">Ctrl + S</span>
+      </div>
+      <p class="hint" id="share-hint" hidden>Partager ouvre WhatsApp, Facebook et tes autres applis, et copie la légende en même temps. Sur iPhone, choisis «&nbsp;Enregistrer l’image&nbsp;» pour l’avoir dans Photos.</p>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <div class="controls">
+      <section class="group" aria-labelledby="g-model">
+        <h2 class="eyebrow" id="g-model">Modèle</h2>
+        <div class="tpls" role="radiogroup" aria-labelledby="g-model">
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-alerte" value="alerte"><canvas data-tpl="alerte" width="216" height="270" aria-hidden="true"></canvas><span>Alerte</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-bandeau" value="bandeau"><canvas data-tpl="bandeau" width="216" height="270" aria-hidden="true"></canvas><span>Bandeau</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-une" value="une"><canvas data-tpl="une" width="216" height="270" aria-hidden="true"></canvas><span>Une</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-citation" value="citation"><canvas data-tpl="citation" width="216" height="270" aria-hidden="true"></canvas><span>Citation</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-chiffre" value="chiffre"><canvas data-tpl="chiffre" width="216" height="270" aria-hidden="true"></canvas><span>Chiffre</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-surligne" value="surligne"><canvas data-tpl="surligne" width="216" height="270" aria-hidden="true"></canvas><span>Surligné</span></label>
+        </div>
+        <p class="tpl-desc" id="tpl-desc"></p>
+      </section>
+
+      <section class="group" aria-labelledby="g-post">
+        <h2 class="eyebrow" id="g-post">Contenu</h2>
+
+        <div class="field">
+          <span class="label" id="photo-label">Photo</span>
+          <div class="file-row">
+            <input type="file" id="photo-input" class="sr-only" accept="image/*" aria-labelledby="photo-label">
+            <label class="btn" for="photo-input">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13V3.5M6 7.5l4-4 4 4M3.5 12.5v3a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3"/></svg>
+              Importer une photo
+            </label>
+            <span class="file-name" id="photo-name">Photo d’exemple</span>
+            <button type="button" class="linkish" id="photo-clear" hidden>Retirer</button>
+          </div>
+          <p class="hint only-fine">Tu peux aussi déposer une image sur la page, ou la coller avec Ctrl+V.</p>
+        </div>
+
+        <div class="field" data-tpl="alerte bandeau une surligne">
+          <label class="label" for="badge">Étiquette</label>
+          <input type="text" id="badge" maxlength="24" autocomplete="off" spellcheck="false">
+          <div class="chips" id="badge-presets">
+            <button type="button" class="chip" data-v="Alerte Info.">Alerte Info.</button>
+            <button type="button" class="chip" data-v="Dernière minute.">Dernière minute.</button>
+            <button type="button" class="chip" data-v="Urgent.">Urgent.</button>
+            <button type="button" class="chip" data-v="Exclusif.">Exclusif.</button>
+            <button type="button" class="chip" data-v="Officiel.">Officiel.</button>
+            <button type="button" class="chip" data-v="Décryptage.">Décryptage.</button>
+          </div>
+          <p class="hint">Laisse vide pour un visuel sans étiquette.</p>
+        </div>
+
+        <div class="field" data-tpl="alerte bandeau une citation chiffre">
+          <label class="label" for="kicker">Rubrique <small>facultatif</small></label>
+          <input type="text" id="kicker" maxlength="40" autocomplete="off" placeholder="Tchad · Politique">
+          <p class="hint">S’affiche en petites capitales. Elle sert aussi à créer les hashtags de la légende.</p>
+        </div>
+
+        <div class="field" data-tpl="chiffre">
+          <label class="label" for="figure">Chiffre</label>
+          <input type="text" id="figure" maxlength="12" autocomplete="off" placeholder="85 %">
+        </div>
+
+        <div class="field">
+          <div class="label"><label for="title" id="title-label">Titre</label><span class="count" id="title-count"></span></div>
+          <textarea id="title" rows="4" spellcheck="true"></textarea>
+          <p class="hint">Entoure des mots d’astérisques pour les colorer, comme <code>*ceci*</code>. Passe à la ligne pour forcer une coupure.</p>
+        </div>
+
+        <div class="two" data-tpl="citation">
+          <div class="field">
+            <label class="label" for="author">Auteur</label>
+            <input type="text" id="author" maxlength="40" autocomplete="off" placeholder="Prénom Nom">
+          </div>
+          <div class="field">
+            <label class="label" for="role">Fonction</label>
+            <input type="text" id="role" maxlength="60" autocomplete="off" placeholder="Ministre, porte-parole…">
+          </div>
+        </div>
+
+        <div class="two">
+          <div class="field">
+            <label class="label" for="source">Source <small>facultatif</small></label>
+            <input type="text" id="source" maxlength="60" autocomplete="off" placeholder="RFI, communiqué officiel">
+          </div>
+          <div class="field">
+            <label class="label" for="credit">Crédit photo <small>facultatif</small></label>
+            <input type="text" id="credit" maxlength="40" autocomplete="off" placeholder="AFP">
+          </div>
+        </div>
+
+        <label class="toggle" for="show-date"><input type="checkbox" id="show-date">Afficher la date du jour <small id="today"></small></label>
+      </section>
+
+      <section class="group" aria-labelledby="g-photo">
+        <h2 class="eyebrow" id="g-photo">Photo</h2>
+        <p class="hint" id="crop-hint">Importe une photo dans Contenu pour la recadrer.</p>
+        <div class="ranges" id="crop" hidden>
+          <label class="range" for="zoom"><span>Zoom</span><input type="range" id="zoom" min="100" max="300" step="1" value="100"><output id="zoom-out" for="zoom">100 %</output></label>
+          <label class="range" for="pos-x"><span>Horizontal</span><input type="range" id="pos-x" min="0" max="100" step="1" value="50"><output id="pos-x-out" for="pos-x">50 %</output></label>
+          <label class="range" for="pos-y"><span>Vertical</span><input type="range" id="pos-y" min="0" max="100" step="1" value="50"><output id="pos-y-out" for="pos-y">50 %</output></label>
+          <p class="hint only-fine">Tu peux aussi faire glisser la photo dans l’aperçu.</p>
+        </div>
+        <div class="field">
+          <span class="label" id="filter-label">Traitement</span>
+          <div class="seg" role="radiogroup" aria-labelledby="filter-label">
+            <label><input type="radio" name="filter" id="flt-none" value="none"><span>Normal</span></label>
+            <label><input type="radio" name="filter" id="flt-bw" value="bw"><span>N&amp;B</span></label>
+            <label><input type="radio" name="filter" id="flt-duo" value="duo"><span>Duotone</span></label>
+            <label><input type="radio" name="filter" id="flt-vivid" value="vivid"><span>Vif</span></label>
+          </div>
+        </div>
+        <div class="ranges">
+          <label class="range" for="shade"><span>Assombrir le bas</span><input type="range" id="shade" min="0" max="100" step="1" value="55"><output id="shade-out" for="shade">55 %</output></label>
+        </div>
+      </section>
+
+      <section class="group" aria-labelledby="g-cap">
+        <h2 class="eyebrow" id="g-cap">Légende du post</h2>
+        <textarea id="caption" readonly rows="6" aria-label="Légende prête à copier"></textarea>
+        <div class="file-row">
+          <button type="button" class="btn" id="copy-caption">Copier la légende</button>
+        </div>
+        <p class="hint">Construite à partir de l’étiquette, de la rubrique, du texte et de la source.</p>
+      </section>
+
+      <section class="group kept" aria-labelledby="g-id">
+        <h2 class="eyebrow" id="g-id">Identité du média · gardée sur cet appareil</h2>
+
+        <div class="field">
+          <label class="label" for="name">Nom affiché</label>
+          <textarea id="name" rows="2" spellcheck="false"></textarea>
+          <p class="hint">Passe à la ligne pour l’écrire sur deux lignes.</p>
+        </div>
+
+        <div class="field">
+          <span class="label" id="logo-label">Logo en image <small>facultatif</small></span>
+          <div class="file-row">
+            <input type="file" id="logo-input" class="sr-only" accept="image/png,image/webp,image/svg+xml,image/jpeg" aria-labelledby="logo-label">
+            <label class="btn" for="logo-input">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13V3.5M6 7.5l4-4 4 4M3.5 12.5v3a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3"/></svg>
+              Importer un logo
+            </label>
+            <button type="button" class="linkish" id="logo-clear" hidden>Retirer le logo</button>
+          </div>
+          <p class="hint">Un PNG à fond transparent rend le mieux. Le logo remplace le nom écrit.</p>
+        </div>
+
+        <div class="field">
+          <label class="label" for="handle">Signature <small>facultatif</small></label>
+          <input type="text" id="handle" maxlength="48" autocomplete="off" spellcheck="false" placeholder="facebook.com/tonmedia">
+          <p class="hint">Ton adresse de page ou ton @, en bas des visuels.</p>
+        </div>
+
+        <div class="field">
+          <span class="label">Couleurs</span>
+          <div class="swatches">
+            <label class="swatch" for="c-brand"><span>Marque</span><input type="color" id="c-brand"><code id="c-brand-hex"></code></label>
+            <label class="swatch" for="c-alert"><span>Alerte</span><input type="color" id="c-alert"><code id="c-alert-hex"></code></label>
+            <label class="swatch" for="c-hl"><span>Surlignage</span><input type="color" id="c-hl"><code id="c-hl-hex"></code></label>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label" id="font-label">Police des titres</span>
+          <div class="seg" role="radiogroup" aria-labelledby="font-label">
+            <label><input type="radio" name="font" id="font-auto" value="auto"><span>Auto</span></label>
+            <label><input type="radio" name="font" id="font-grotesk" value="grotesk"><span class="f-grotesk">Grotesk</span></label>
+            <label><input type="radio" name="font" id="font-condensed" value="condensed"><span class="f-condensed">Condensée</span></label>
+            <label><input type="radio" name="font" id="font-serif" value="serif"><span class="f-serif">Serif</span></label>
+          </div>
+          <p class="hint">Auto choisit la police qui va le mieux à chaque modèle.</p>
+        </div>
+
+        <div class="field" data-tpl="alerte bandeau une surligne">
+          <span class="label" id="bs-label">Style d’étiquette</span>
+          <div class="seg" role="radiogroup" aria-labelledby="bs-label">
+            <label><input type="radio" name="badge-style" id="bs-plain" value="plain"><span>Fond blanc</span></label>
+            <label><input type="radio" name="badge-style" id="bs-solid" value="solid"><span>Fond couleur</span></label>
+          </div>
+        </div>
+
+        <div class="field" data-tpl="alerte">
+          <span class="label" id="fx-label">Texte sur la photo</span>
+          <div class="seg" role="radiogroup" aria-labelledby="fx-label">
+            <label><input type="radio" name="text-fx" id="fx-shadow" value="shadow"><span>Ombre douce</span></label>
+            <label><input type="radio" name="text-fx" id="fx-outline" value="outline"><span>Contour noir</span></label>
+          </div>
+        </div>
+
+        <div class="field" data-tpl="une">
+          <span class="label" id="panel-label">Panneau du modèle Une</span>
+          <div class="seg" role="radiogroup" aria-labelledby="panel-label">
+            <label><input type="radio" name="panel" id="panel-dark" value="dark"><span>Sombre</span></label>
+            <label><input type="radio" name="panel" id="panel-light" value="light"><span>Clair</span></label>
+            <label><input type="radio" name="panel" id="panel-brand" value="brand"><span>Couleur</span></label>
+          </div>
+        </div>
+
+        <div class="field" data-tpl="surligne">
+          <span class="label" id="boxes-label">Boîtes du modèle Surligné</span>
+          <div class="seg" role="radiogroup" aria-labelledby="boxes-label">
+            <label><input type="radio" name="boxes" id="boxes-white" value="white"><span>Blanches</span></label>
+            <label><input type="radio" name="boxes" id="boxes-brand" value="brand"><span>Couleur</span></label>
+            <label><input type="radio" name="boxes" id="boxes-black" value="black"><span>Noires</span></label>
+          </div>
+        </div>
+
+        <label class="toggle" for="french"><input type="checkbox" id="french">Typographie française automatique <small>« », espaces, ’</small></label>
+
+        <details class="kit" id="kit">
+          <summary>Partager ou recevoir l’identité</summary>
+          <div class="kit-body">
+            <p class="hint" id="kit-hint">Copie le code et envoie-le par WhatsApp. Sur l’autre téléphone, ouvre cette page, colle le code ci-dessous et applique-le. Le logo image ne passe pas dans le code, envoie le fichier à part.</p>
+            <div class="file-row">
+              <button type="button" class="btn" id="kit-link" hidden>Copier le lien d’installation</button>
+              <button type="button" class="btn" id="kit-copy">Copier le code</button>
+            </div>
+            <textarea id="kit-out" rows="2" readonly hidden aria-label="Code d’identité"></textarea>
+            <label class="label" for="kit-in">Code reçu</label>
+            <textarea id="kit-in" rows="2" spellcheck="false" placeholder="KIT1.…"></textarea>
+            <div class="file-row"><button type="button" class="btn" id="kit-apply">Appliquer le code</button></div>
+          </div>
+        </details>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="sheet-card">
+    <h2 id="sheet-title">Ton visuel est prêt</h2>
+    <img id="sheet-img" alt="Ton visuel, prêt à enregistrer">
+    <p>Sur téléphone, fais un appui long sur l’image puis «&nbsp;Enregistrer l’image&nbsp;». Sur ordinateur, clic droit puis «&nbsp;Enregistrer l’image sous&nbsp;».</p>
+    <button type="button" class="btn" id="sheet-close">Fermer</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const NB = ' ';
+  const NNB = ' ';
+  const M = 64;
+  const FRAMED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+  const STANDALONE = !FRAMED && !(window.claude && typeof window.claude.use === 'function');
+  const ON_WEB = STANDALONE && /^https?:$/.test(location.protocol);
+
+  /* ---------- formats, polices, modèles ---------- */
+  const FORMATS = {
+    feed:   { w: 1080, h: 1350, ratio: '4:5',  top: 72,  bottom: 76,  blk: 0.36, une: 0.54 },
+    square: { w: 1080, h: 1080, ratio: '1:1',  top: 60,  bottom: 64,  blk: 0.40, une: 0.50 },
+    story:  { w: 1080, h: 1920, ratio: '9:16', top: 210, bottom: 300, blk: 0.30, une: 0.50 }
+  };
+  const FAM = {
+    grotesk:   { family: '"Archivo", "Helvetica Neue", Arial, sans-serif', weight: 800, k: 1, lh: 1.1 },
+    condensed: { family: '"Anton", Impact, "Arial Narrow", sans-serif', weight: 400, k: 1.22, lh: 1.12 },
+    serif:     { family: '"Newsreader", Georgia, "Times New Roman", serif', weight: 700, k: 1.06, lh: 1.08 }
+  };
+  const SANS = (w) => ({ family: FAM.grotesk.family, weight: w });
+  const BADGE_COND = { family: FAM.condensed.family, weight: 400 };
+  const TPL = {
+    alerte:   { font: 'grotesk', desc: 'Photo plein cadre et titre fort, pour les infos qui tombent.', draw: drawAlerte },
+    bandeau:  { font: 'grotesk', desc: 'Bandeau façon direct télé, idéal pour la dernière minute.', draw: drawBandeau },
+    une:      { font: 'serif',   desc: 'Photo en haut, panneau éditorial en bas, pour les sujets de fond.', draw: drawUne },
+    citation: { font: 'serif',   desc: 'Une phrase forte et la personne qui l’a dite.', draw: drawCitation },
+    chiffre:  { font: 'grotesk', desc: 'Un nombre clé mis en avant, avec son explication.', draw: drawChiffre },
+    surligne: { font: 'grotesk', desc: 'Texte posé dans des boîtes, très lisible sur mobile.', draw: drawSurligne }
+  };
+  const famFor = (tpl) => FAM[state.font === 'auto' ? TPL[tpl].font : state.font];
+  const badgeFam = (fam) => (fam === FAM.condensed ? BADGE_COND : SANS(800));
+
+  let DATE_STR = '';
+  try {
+    DATE_STR = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
+  } catch (e) {
+    DATE_STR = new Date().toLocaleDateString();
+  }
+
+  /* ---------- état + mémoire locale ---------- */
+  const KEY = 'generateur-alerte-info:v2';
+  const OLD_KEY = 'generateur-alerte-info:v1';
+  const DEFAULTS = {
+    tpl: 'alerte',
+    badge: 'Alerte Info.',
+    kicker: 'Tchad · Politique',
+    title: "Exemple de titre : le texte s'adapte tout seul à la place disponible, et les *mots clés* passent en couleur.",
+    figure: '85 %',
+    author: 'Prénom Nom',
+    role: 'Fonction',
+    source: '',
+    credit: '',
+    showDate: true,
+    filter: 'none',
+    shade: 55,
+    name: 'Mon Média.',
+    handle: '',
+    logo: '',
+    brand: '#1E4FD6',
+    alert: '#E1262D',
+    hl: '#FFD23F',
+    font: 'auto',
+    textFx: 'shadow',
+    badgeStyle: 'plain',
+    panel: 'dark',
+    boxes: 'white',
+    format: 'feed',
+    frenchTypo: true,
+    guides: false
+  };
+  const KIT_KEYS = ['name', 'handle', 'brand', 'alert', 'hl', 'font', 'textFx', 'badgeStyle', 'panel', 'boxes', 'format', 'frenchTypo'];
+  const ENUMS = {
+    tpl: Object.keys(TPL),
+    font: ['auto', 'grotesk', 'condensed', 'serif'],
+    textFx: ['shadow', 'outline'],
+    badgeStyle: ['plain', 'solid'],
+    panel: ['dark', 'light', 'brand'],
+    boxes: ['white', 'brand', 'black'],
+    format: Object.keys(FORMATS),
+    filter: ['none', 'bw', 'duo', 'vivid']
+  };
+  const COLOR_KEYS = ['brand', 'alert', 'hl'];
+
+  function readJSON(k) {
+    try {
+      const raw = localStorage.getItem(k);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function sanitize(src, keys) {
+    const out = {};
+    if (!src || typeof src !== 'object') return out;
+    for (const k of keys) {
+      if (!Object.prototype.hasOwnProperty.call(src, k)) continue;
+      let v = src[k];
+      if (typeof v !== typeof DEFAULTS[k]) continue;
+      if (ENUMS[k] && ENUMS[k].indexOf(v) === -1) continue;
+      if (COLOR_KEYS.indexOf(k) !== -1 && !/^#[0-9a-f]{6}$/i.test(v)) continue;
+      if (k === 'shade') v = clamp(Math.round(v) || 0, 0, 100);
+      if (k === 'logo') { if (v && v.indexOf('data:image/') !== 0) continue; }
+      else if (typeof v === 'string') v = v.slice(0, 600);
+      out[k] = v;
+    }
+    return out;
+  }
+  function loadState() {
+    let saved = readJSON(KEY);
+    if (!saved) {
+      const o = readJSON(OLD_KEY);
+      if (o) {
+        saved = {
+          name: o.media, brand: o.brand, alert: o.badgeColor, hl: o.hlColor, badgeStyle: o.badgeStyle,
+          format: o.format, shade: o.shade, badge: o.badge, title: o.title, logo: o.logo,
+          font: o.font === 'condensed' ? 'condensed' : 'auto'
+        };
+      }
+    }
+    return Object.assign({}, DEFAULTS, sanitize(saved, Object.keys(DEFAULTS)));
+  }
+  const state = loadState();
+
+  let saveTimer = 0;
+  function persist() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(state));
+      } catch (e) {
+        try { localStorage.setItem(KEY, JSON.stringify(Object.assign({}, state, { logo: '' }))); } catch (e2) { /* stockage indisponible */ }
+      }
+    }, 250);
+  }
+
+  /* ---------- couleurs ---------- */
+  function hexToRgb(h) {
+    const n = parseInt(h.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function mix(a, b, t) {
+    const A = hexToRgb(a);
+    const B = hexToRgb(b);
+    return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',') + ')';
+  }
+
+  /* ---------- texte ---------- */
+  const SEG = (typeof Intl !== 'undefined' && Intl.Segmenter) ? new Intl.Segmenter('fr', { granularity: 'grapheme' }) : null;
+  const graphemes = (s) => (SEG ? Array.from(SEG.segment(s), (x) => x.segment) : Array.from(s));
+  const EMOJI_RE = /(\p{Regional_Indicator}{2}|\p{Extended_Pictographic}(?:️|\p{Emoji_Modifier}|‍\p{Extended_Pictographic}️?)*)/u;
+
+  function typo(s) {
+    let t = String(s).replace(/'/g, '’');
+    if (!state.frenchTypo) return t;
+    t = t.replace(/\.\.\./g, '…');
+    t = t.replace(/"([^"\n]+)"/g, '«' + NB + '$1' + NB + '»');
+    t = t.replace(/«[  ]*/g, '«' + NB).replace(/[  ]*»/g, NB + '»');
+    t = t.replace(/[  ]*([:;!?]+)(?=[\s*»]|$)/g, NB + '$1');
+    return t;
+  }
+  function pushSeg(segs, t, hl) {
+    const parts = t.split(EMOJI_RE);
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i]) segs.push({ t: parts[i], hl, emo: i % 2 === 1 });
+    }
+  }
+  function parseRich(text) {
+    const paras = [];
+    let hl = false;
+    for (const para of text.split('\n')) {
+      const words = [];
+      for (const raw of para.split(/[ \t]+/)) {
+        if (!raw) continue;
+        const segs = [];
+        let buf = '';
+        for (const ch of raw) {
+          if (ch === '*') {
+            if (buf) { pushSeg(segs, buf, hl); buf = ''; }
+            hl = !hl;
+          } else {
+            buf += ch;
+          }
+        }
+        if (buf) pushSeg(segs, buf, hl);
+        if (segs.length) words.push(segs);
+      }
+      paras.push(words);
+    }
+    return paras;
+  }
+
+  const W_CACHE = new Map();
+  function mw(c, text) {
+    const key = c.font + '\u0001' + text;
+    let v = W_CACHE.get(key);
+    if (v === undefined) {
+      v = c.measureText(text).width;
+      if (W_CACHE.size > 8000) W_CACHE.clear();
+      W_CACHE.set(key, v);
+    }
+    return v;
+  }
+  const capH = (c, px) => c.measureText('H').actualBoundingBoxAscent || px * 0.72;
+  function fontOf(fam, px, o) {
+    const it = o && o.italic ? 'italic ' : '';
+    const wt = (o && o.weight) || fam.weight;
+    return it + wt + ' ' + Math.round(px * 10) / 10 + 'px ' + fam.family;
+  }
+
+  function wrapPara(c, words, maxW, space) {
+    const lines = [];
+    let cur = [];
+    let cw = 0;
+    for (const w of words) {
+      const ww = w.reduce((s, g) => s + mw(c, g.t), 0);
+      if (cur.length && cw + space + ww > maxW) {
+        lines.push({ words: cur, w: cw });
+        cur = [w];
+        cw = ww;
+      } else {
+        cw = cur.length ? cw + space + ww : ww;
+        cur.push(w);
+      }
+    }
+    if (cur.length) lines.push({ words: cur, w: cw });
+    return lines;
+  }
+  function wrapAll(c, paras, maxW, pretty) {
+    const space = mw(c, ' ');
+    const out = [];
+    for (const words of paras) {
+      let lines = wrapPara(c, words, maxW, space);
+      if (pretty && lines.length > 1) {
+        const n = lines.length;
+        let lo = maxW * 0.7;
+        let hi = maxW;
+        for (let i = 0; i < 10; i++) {
+          const mid = (lo + hi) / 2;
+          const t = wrapPara(c, words, mid, space);
+          if (t.length <= n && t.every((l) => l.w <= mid)) { lines = t; hi = mid; } else { lo = mid; }
+        }
+      }
+      for (const l of lines) out.push(l);
+    }
+    return out;
+  }
+
+  let fontEpoch = 0;
+  const FIT_CACHE = new Map();
+  function fitText(c, text, o) {
+    const key = [text, o.fam.family, o.weight || o.fam.weight, o.italic ? 1 : 0, Math.round(o.max), Math.round(o.min),
+      Math.round(o.maxW), Math.round(o.maxH), o.lh, fontEpoch, state.frenchTypo ? 1 : 0].join('|');
+    const hit = FIT_CACHE.get(key);
+    if (hit) return hit;
+    const paras = parseRich(typo(text));
+    let px = o.min;
+    let overflow = true;
+    for (let p = o.max; p >= o.min; p -= 2) {
+      c.font = fontOf(o.fam, p, o);
+      const lines = wrapAll(c, paras, o.maxW, false);
+      const widest = lines.reduce((m, l) => Math.max(m, l.w), 0);
+      if (lines.length * p * o.lh <= o.maxH && widest <= o.maxW) { px = p; overflow = false; break; }
+    }
+    c.font = fontOf(o.fam, px, o);
+    const res = { px, overflow, font: c.font, lh: px * o.lh, lines: wrapAll(c, paras, o.maxW, true) };
+    if (FIT_CACHE.size > 120) FIT_CACHE.clear();
+    FIT_CACHE.set(key, res);
+    return res;
+  }
+
+  function drawRich(c, E, fit, x, first, o) {
+    if (!fit.lines.length) return;
+    c.save();
+    c.font = fit.font;
+    c.textAlign = 'left';
+    c.textBaseline = 'alphabetic';
+    const space = mw(c, ' ');
+    const passes = o.fx === 'outline' ? ['stroke', 'fill'] : o.fx === 'shadow' ? ['shadow', 'fill'] : ['fill'];
+    for (const pass of passes) {
+      if (pass === 'stroke') {
+        c.lineJoin = 'round';
+        c.miterLimit = 2;
+        c.lineWidth = Math.max(4, fit.px * 0.13);
+        c.strokeStyle = '#000000';
+      } else if (pass === 'shadow') {
+        c.shadowColor = 'rgba(0,0,0,0.55)';
+        c.shadowBlur = fit.px * 0.32 * E.S;
+        c.shadowOffsetY = fit.px * 0.04 * E.S;
+        c.fillStyle = '#000000';
+      } else {
+        c.shadowColor = 'rgba(0,0,0,0)';
+        c.shadowBlur = 0;
+        c.shadowOffsetY = 0;
+      }
+      fit.lines.forEach((line, i) => {
+        const y = first + i * fit.lh;
+        let lx = x;
+        line.words.forEach((w, wi) => {
+          if (wi) lx += space;
+          for (const g of w) {
+            if (pass === 'stroke') { if (!g.emo) c.strokeText(g.t, lx, y); }
+            else if (pass === 'shadow') { c.fillText(g.t, lx, y); }
+            else { c.fillStyle = g.hl ? o.hl : o.color; c.fillText(g.t, lx, y); }
+            lx += mw(c, g.t);
+          }
+        });
+      });
+    }
+    c.restore();
+  }
+
+  function spacedWidth(c, text, sp) {
+    const g = graphemes(text);
+    return g.reduce((s, ch) => s + mw(c, ch), 0) + sp * Math.max(0, g.length - 1);
+  }
+  function drawSpaced(c, text, x, y, sp) {
+    let cx = x;
+    for (const ch of graphemes(text)) {
+      c.fillText(ch, cx, y);
+      cx += mw(c, ch) + sp;
+    }
+  }
+  function fitLine(c, text, maxW) {
+    if (mw(c, text) <= maxW) return text;
+    let t = text;
+    while (t.length > 1 && mw(c, t + '…') > maxW) t = t.slice(0, -1);
+    return t.trimEnd() + '…';
+  }
+  const kickerText = () => typo(state.kicker.trim()).toLocaleUpperCase('fr-FR');
+  const handleText = () => typo(state.handle.trim());
+  function metaText() {
+    const parts = [];
+    const src = state.source.trim();
+    if (src) parts.push('Source' + NB + ': ' + typo(src));
+    if (state.showDate) parts.push(DATE_STR);
+    return parts.join('  ·  ');
+  }
+
+  /* ---------- éléments communs ---------- */
+  function drawKicker(c, E, text, x, base, o) {
+    c.save();
+    const px = o.size || 24;
+    c.font = fontOf(SANS(800), px);
+    c.textAlign = 'left';
+    if (o.shadow) { c.shadowColor = 'rgba(0,0,0,0.6)'; c.shadowBlur = 8 * E.S; }
+    c.fillStyle = o.color;
+    drawSpaced(c, text, x, base, px * 0.14);
+    c.restore();
+  }
+  function drawSmall(c, E, text, x, y, o) {
+    if (!text) return;
+    c.save();
+    c.font = fontOf(SANS(o.weight || 600), o.size || 22);
+    c.textAlign = o.align || 'left';
+    if (o.shadow) { c.shadowColor = 'rgba(0,0,0,0.6)'; c.shadowBlur = 8 * E.S; }
+    c.fillStyle = o.color;
+    c.fillText(o.maxW ? fitLine(c, text, o.maxW) : text, x, y);
+    c.restore();
+  }
+  function drawFooter(c, E, left, right, x0, x1, y, o) {
+    if (!left && !right) return;
+    c.save();
+    c.font = fontOf(SANS(o.weight || 600), o.size || 24);
+    if (o.shadow) { c.shadowColor = 'rgba(0,0,0,0.55)'; c.shadowBlur = 8 * E.S; }
+    c.fillStyle = o.color;
+    const avail = x1 - x0;
+    const r = right ? fitLine(c, right, left ? avail * 0.48 : avail) : '';
+    const l = left ? fitLine(c, left, avail - (r ? mw(c, r) + 32 : 0)) : '';
+    if (l) { c.textAlign = 'left'; c.fillText(l, x0, y); }
+    if (r) { c.textAlign = 'right'; c.fillStyle = o.rightColor || o.color; c.fillText(r, x1, y); }
+    c.restore();
+  }
+  function creditTopRight(c, E) {
+    const cr = state.credit.trim();
+    if (!cr) return;
+    drawSmall(c, E, 'Photo' + NB + ': ' + typo(cr), E.W - M, E.f.top + 22,
+      { align: 'right', size: 22, color: 'rgba(255,255,255,0.9)', shadow: true, maxW: E.W * 0.34 });
+  }
+
+  function drawBrand(c, E, x, y, o) {
+    if (logoImg) {
+      const iw = logoImg.naturalWidth || 600;
+      const ih = logoImg.naturalHeight || 200;
+      const s = Math.min((o.h || 112) / ih, (o.maxW || 480) / iw);
+      const w = iw * s;
+      const h = ih * s;
+      const top = o.baseline !== undefined ? o.baseline - h + Math.round(h * 0.12) : y;
+      c.drawImage(logoImg, x, top, w, h);
+      return { w, h };
+    }
+    const lines = typo(state.name).split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 3);
+    if (!lines.length) return { w: 0, h: 0 };
+    const f = SANS(800);
+    let px = o.size || 46;
+    c.save();
+    c.font = fontOf(f, px);
+    let widest = Math.max(...lines.map((l) => mw(c, l)));
+    if (o.maxW && widest > o.maxW) {
+      px = Math.max(16, Math.floor((px * o.maxW) / widest));
+      c.font = fontOf(f, px);
+      widest = Math.max(...lines.map((l) => mw(c, l)));
+    }
+    const cap = capH(c, px);
+    const lh = Math.round(px * 1.06);
+    const base0 = o.baseline !== undefined ? o.baseline - (lines.length - 1) * lh : y + cap;
+    const rightAlign = o.mode === 'outlined';
+    const xOf = (l) => (rightAlign ? x + widest - mw(c, l) : x);
+    c.textAlign = 'left';
+    if (o.mode === 'outlined') {
+      c.lineJoin = 'round';
+      c.lineWidth = Math.max(3, px * 0.16);
+      c.strokeStyle = '#FFFFFF';
+      lines.forEach((l, i) => c.strokeText(l, xOf(l), base0 + i * lh));
+    }
+    c.fillStyle = o.color;
+    lines.forEach((l, i) => c.fillText(l, xOf(l), base0 + i * lh));
+    c.restore();
+    return { w: widest, h: cap + (lines.length - 1) * lh };
+  }
+
+  function badgeGeom(c, text, fam, px, maxW) {
+    const pad = 0.3;
+    c.font = fontOf(fam, px);
+    let tw = mw(c, text);
+    if (tw + 2 * px * pad > maxW) {
+      px = Math.max(20, Math.floor((px * maxW) / (tw + 2 * px * pad)));
+      c.font = fontOf(fam, px);
+      tw = mw(c, text);
+    }
+    const cap = capH(c, px);
+    const padX = Math.round(px * pad);
+    return { text, fam, px, cap, padX, w: Math.round(tw + padX * 2), h: Math.round(cap + px * 0.52) };
+  }
+  function drawBadge(c, g, x, top, style) {
+    const solid = style === 'solid';
+    c.save();
+    c.fillStyle = solid ? state.alert : '#FFFFFF';
+    c.fillRect(x, top, g.w, g.h);
+    c.font = fontOf(g.fam, g.px);
+    c.textAlign = 'left';
+    c.fillStyle = solid ? '#FFFFFF' : state.alert;
+    c.fillText(g.text, x + g.padX, top + Math.round(g.px * 0.24) + g.cap);
+    c.restore();
+  }
+
+  function shade(c, E, fromY, alpha) {
+    const a = alpha !== undefined ? alpha : (state.shade / 100) * 0.85;
+    if (a <= 0) return;
+    const start = clamp(fromY, 0, E.H - 1);
+    const g = c.createLinearGradient(0, start, 0, E.H);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.45, 'rgba(0,0,0,' + (a * 0.6).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(0,0,0,' + a.toFixed(3) + ')');
+    c.fillStyle = g;
+    c.fillRect(0, start, E.W, E.H - start);
+  }
+
+  /* ---------- photo : calques mis en cache ---------- */
+  let photo = null;
+  let photoId = 0;
+  let logoImg = null;
+  const crop = { zoom: 1, fx: 0.5, fy: 0.5 };
+  const layers = new Map();
+  const scratch = document.createElement('canvas');
+
+  function drawSample(t, w, h) {
+    const sky = t.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, '#2C3D66');
+    sky.addColorStop(0.55, '#19213D');
+    sky.addColorStop(1, '#0A0D18');
+    t.fillStyle = sky;
+    t.fillRect(0, 0, w, h);
+    const glow = t.createRadialGradient(w * 0.78, h * 0.2, 0, w * 0.78, h * 0.2, w * 0.75);
+    glow.addColorStop(0, 'rgba(255,166,92,0.42)');
+    glow.addColorStop(1, 'rgba(255,166,92,0)');
+    t.fillStyle = glow;
+    t.fillRect(0, 0, w, h);
+    let seed = 11;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const tints = ['255,196,128', '255,132,98', '122,170,255', '255,222,160', '196,156,255'];
+    t.save();
+    t.globalCompositeOperation = 'screen';
+    for (let i = 0; i < 36; i++) {
+      const x = rnd() * w;
+      const y = rnd() * h * 0.78;
+      const r = 26 + rnd() * 112;
+      const col = tints[Math.floor(rnd() * tints.length)];
+      const a = 0.07 + rnd() * 0.22;
+      const b = t.createRadialGradient(x, y, r * 0.15, x, y, r);
+      b.addColorStop(0, 'rgba(' + col + ',' + a.toFixed(3) + ')');
+      b.addColorStop(0.82, 'rgba(' + col + ',' + (a * 0.75).toFixed(3) + ')');
+      b.addColorStop(1, 'rgba(' + col + ',0)');
+      t.fillStyle = b;
+      t.beginPath();
+      t.arc(x, y, r, 0, Math.PI * 2);
+      t.fill();
+    }
+    t.restore();
+  }
+  function drawPhotoCover(t, w, h) {
+    const s = Math.max(w / photo.naturalWidth, h / photo.naturalHeight) * crop.zoom;
+    const dw = photo.naturalWidth * s;
+    const dh = photo.naturalHeight * s;
+    t.drawImage(photo, (w - dw) * crop.fx, (h - dh) * crop.fy, dw, dh);
+  }
+  function paintLayer(cv, filter) {
+    const w = cv.width;
+    const h = cv.height;
+    if (scratch.width !== w) scratch.width = w;
+    if (scratch.height !== h) scratch.height = h;
+    const s = scratch.getContext('2d');
+    s.setTransform(1, 0, 0, 1, 0, 0);
+    s.globalCompositeOperation = 'source-over';
+    s.globalAlpha = 1;
+    s.clearRect(0, 0, w, h);
+    s.imageSmoothingQuality = 'high';
+    if (photo) { s.fillStyle = '#000000'; s.fillRect(0, 0, w, h); drawPhotoCover(s, w, h); } else drawSample(s, w, h);
+
+    const t = cv.getContext('2d');
+    t.setTransform(1, 0, 0, 1, 0, 0);
+    t.globalAlpha = 1;
+    t.globalCompositeOperation = 'source-over';
+    if (filter === 'bw' || filter === 'duo') {
+      t.fillStyle = '#808080';
+      t.fillRect(0, 0, w, h);
+      t.globalCompositeOperation = 'luminosity';
+      t.drawImage(scratch, 0, 0);
+      if (filter === 'duo') {
+        t.globalCompositeOperation = 'multiply';
+        t.fillStyle = mix(state.brand, '#FFFFFF', 0.8);
+        t.fillRect(0, 0, w, h);
+        t.globalCompositeOperation = 'screen';
+        t.fillStyle = mix(state.brand, '#000000', 0.55);
+        t.fillRect(0, 0, w, h);
+      }
+      t.globalCompositeOperation = 'source-over';
+    } else {
+      t.clearRect(0, 0, w, h);
+      t.drawImage(scratch, 0, 0);
+      if (filter === 'vivid') {
+        t.globalCompositeOperation = 'overlay';
+        t.globalAlpha = 0.4;
+        t.drawImage(scratch, 0, 0);
+        t.globalAlpha = 1;
+        t.globalCompositeOperation = 'source-over';
+      }
+    }
+  }
+  function drawLayer(c, rect, filterOverride) {
+    const filter = filterOverride || state.filter;
+    const sizeKey = rect.w + 'x' + rect.h + '|' + filter;
+    const contentKey = [photo ? photoId : 'exemple', crop.zoom, crop.fx, crop.fy, filter === 'duo' ? state.brand : ''].join('|');
+    let L = layers.get(sizeKey);
+    if (!L) {
+      if (layers.size >= 6) layers.delete(layers.keys().next().value);
+      const cv = document.createElement('canvas');
+      cv.width = rect.w;
+      cv.height = rect.h;
+      L = { cv, key: '' };
+      layers.set(sizeKey, L);
+    }
+    if (L.key !== contentKey) { paintLayer(L.cv, filter); L.key = contentKey; }
+    c.drawImage(L.cv, rect.x, rect.y, rect.w, rect.h);
+  }
+  function photoRect() {
+    const f = FORMATS[state.format];
+    return state.tpl === 'une' ? { w: f.w, h: Math.round(f.h * f.une) } : { w: f.w, h: f.h };
+  }
+
+  /* ---------- modèles ---------- */
+  function drawAlerte(c, E) {
+    const { W, H, f } = E;
+    drawLayer(c, { x: 0, y: 0, w: W, h: H });
+    const fam = famFor('alerte');
+    const maxW = W - 2 * M;
+    const bottom = H - f.bottom;
+    const meta = metaText();
+    const handle = handleText();
+    const hasMeta = !!(meta || handle);
+    const last = hasMeta ? bottom - 62 : bottom;
+    const fit = fitText(c, state.title, { fam, max: 76 * fam.k, min: 38 * fam.k, maxW, maxH: H * f.blk, lh: fam.lh });
+    const n = fit.lines.length;
+    const first = last - (n - 1) * fit.lh;
+    c.font = fit.font;
+    const titleTop = n ? first - capH(c, fit.px) : last;
+    let top = titleTop;
+    const btxt = typo(state.badge.trim());
+    const g = btxt ? badgeGeom(c, btxt, badgeFam(fam), fam === FAM.condensed ? 62 : 54, maxW) : null;
+    let badgeTop = 0;
+    if (g) {
+      badgeTop = Math.round((n ? titleTop - fit.px * 0.34 : last) - g.h);
+      top = badgeTop;
+    }
+    const kick = kickerText();
+    let kickBase = 0;
+    if (kick) {
+      kickBase = Math.round(top - (g ? 22 : fit.px * 0.4));
+      top = kickBase - 18;
+    }
+    shade(c, E, top - H * 0.24);
+    drawBrand(c, E, M, f.top, { mode: 'outlined', color: state.brand, size: 46, maxW: W * 0.58 });
+    creditTopRight(c, E);
+    if (kick) drawKicker(c, E, kick, M, kickBase, { color: '#FFFFFF', size: 24, shadow: true });
+    if (g) drawBadge(c, g, M, badgeTop, state.badgeStyle);
+    drawRich(c, E, fit, M, first, { color: '#FFFFFF', hl: state.hl, fx: state.textFx });
+    drawFooter(c, E, meta, handle, M, W - M, bottom, { color: 'rgba(255,255,255,0.88)', size: 24, shadow: true });
+    return fit;
+  }
+
+  function drawBandeau(c, E) {
+    const { W, H, f } = E;
+    drawLayer(c, { x: 0, y: 0, w: W, h: H });
+    const fam = famFor('bandeau');
+    const edge = E.key === 'story' ? H - f.bottom : H;
+    const stripH = 64;
+    const stripTop = edge - stripH;
+    const padT = 30;
+    const padB = 32;
+    const kick = kickerText();
+    const kickH = kick ? 17 + 18 : 0;
+    const fit = fitText(c, state.title, {
+      fam, max: 62 * fam.k, min: 32 * fam.k, maxW: W - 2 * M,
+      maxH: H * (E.key === 'story' ? 0.2 : 0.24), lh: fam.lh + 0.02
+    });
+    const n = fit.lines.length;
+    c.font = fit.font;
+    const cap = capH(c, fit.px);
+    const textH = n ? cap + (n - 1) * fit.lh + fit.px * 0.24 : 0;
+    const panelH = Math.round(padT + kickH + textH + padB);
+    const panelTop = stripTop - panelH;
+    const btxt = typo(state.badge.trim()).toLocaleUpperCase('fr-FR');
+    const labelH = 62;
+    const labelTop = panelTop - labelH;
+    shade(c, E, (btxt ? labelTop : panelTop) - H * 0.16, (state.shade / 100) * 0.6);
+    drawBrand(c, E, M, f.top, { mode: 'outlined', color: state.brand, size: 46, maxW: W * 0.58 });
+    creditTopRight(c, E);
+
+    if (btxt) {
+      c.save();
+      const lf = badgeFam(fam);
+      const lpx = fam === FAM.condensed ? 36 : 30;
+      c.font = fontOf(lf, lpx);
+      const sp = 2;
+      const tw = Math.min(spacedWidth(c, btxt, sp), W - 2 * M - 40);
+      c.fillStyle = state.alert;
+      c.fillRect(0, labelTop, M + tw + 30, labelH);
+      c.fillStyle = '#FFFFFF';
+      c.textAlign = 'left';
+      drawSpaced(c, btxt, M, labelTop + Math.round((labelH + capH(c, lpx)) / 2), sp);
+      c.restore();
+    }
+
+    c.fillStyle = '#FFFFFF';
+    c.fillRect(0, panelTop, W, panelH);
+    let y = panelTop + padT;
+    if (kick) { drawKicker(c, E, kick, M, y + 17, { color: state.alert, size: 24 }); y += kickH; }
+    drawRich(c, E, fit, M, y + cap, { color: '#101216', hl: state.alert, fx: 'none' });
+
+    c.fillStyle = state.brand;
+    c.fillRect(0, stripTop, W, stripH);
+    const meta = metaText();
+    const handle = handleText();
+    let left = meta;
+    let right = handle;
+    if (!meta && !handle) left = typo(state.name.split('\n').join(' ').trim()).toLocaleUpperCase('fr-FR');
+    drawFooter(c, E, left, right, M, W - M, stripTop + Math.round(stripH / 2) + 8, { color: '#FFFFFF', size: 23, weight: 700 });
+    return fit;
+  }
+
+  function panelColors() {
+    if (state.panel === 'light') return { bg: '#FFFFFF', fg: '#111216', muted: 'rgba(17,18,22,0.62)', rule: 'rgba(17,18,22,0.14)', kick: state.alert, hl: state.alert };
+    if (state.panel === 'brand') return { bg: state.brand, fg: '#FFFFFF', muted: 'rgba(255,255,255,0.8)', rule: 'rgba(255,255,255,0.26)', kick: state.hl, hl: state.hl };
+    return { bg: '#111216', fg: '#FFFFFF', muted: 'rgba(255,255,255,0.68)', rule: 'rgba(255,255,255,0.16)', kick: state.hl, hl: state.hl };
+  }
+  function drawUne(c, E) {
+    const { W, H, f } = E;
+    const photoH = Math.round(H * f.une);
+    drawLayer(c, { x: 0, y: 0, w: W, h: photoH });
+    const P = panelColors();
+    c.fillStyle = P.bg;
+    c.fillRect(0, photoH, W, H - photoH);
+    const fam = famFor('une');
+    const cr = state.credit.trim();
+    if (cr) drawSmall(c, E, 'Photo' + NB + ': ' + typo(cr), W - M, photoH - 22, { align: 'right', size: 22, color: 'rgba(255,255,255,0.9)', shadow: true, maxW: W * 0.4 });
+    const btxt = typo(state.badge.trim());
+    const g = btxt ? badgeGeom(c, btxt, badgeFam(fam), fam === FAM.condensed ? 52 : 46, W - 2 * M) : null;
+    if (g) drawBadge(c, g, M, Math.round(photoH - g.h / 2), state.badgeStyle);
+
+    const footBase = H - f.bottom;
+    const ruleY = footBase - 46;
+    c.fillStyle = P.rule;
+    c.fillRect(M, ruleY, W - 2 * M, 2);
+    const b = drawBrand(c, E, M, 0, { mode: 'plain', color: P.fg, size: 30, maxW: W * 0.45, h: 46, baseline: footBase });
+    const metaParts = [metaText(), handleText()].filter(Boolean).join('  ·  ');
+    drawFooter(c, E, '', metaParts, M + b.w + 32, W - M, footBase, { color: P.muted, size: 22 });
+
+    let y = photoH + (g ? Math.round(g.h / 2) + 36 : 54);
+    const kick = kickerText();
+    if (kick) { drawKicker(c, E, kick, M, y + 17, { color: P.kick, size: 24 }); y += 17 + 22; }
+    const areaH = Math.max(60, ruleY - 36 - y);
+    const italic = false;
+    const fit = fitText(c, state.title, { fam, max: 72 * fam.k, min: 34 * fam.k, maxW: W - 2 * M, maxH: areaH, lh: fam.lh, italic });
+    c.font = fit.font;
+    drawRich(c, E, fit, M, y + capH(c, fit.px), { color: P.fg, hl: P.hl, fx: 'none' });
+    return fit;
+  }
+
+  function drawCitation(c, E) {
+    const { W, H, f } = E;
+    drawLayer(c, { x: 0, y: 0, w: W, h: H });
+    c.fillStyle = 'rgba(0,0,0,0.14)';
+    c.fillRect(0, 0, W, H);
+    const fam = famFor('citation');
+    const italic = fam === FAM.serif;
+    const bottom = H - f.bottom;
+    const meta = metaText();
+    const handle = handleText();
+    const hasMeta = !!(meta || handle);
+    const author = typo(state.author.trim());
+    const role = typo(state.role.trim());
+    let y = hasMeta ? bottom - 24 - 44 : bottom;
+    let roleBase = 0;
+    let nameBase = 0;
+    let ruleTop = 0;
+    if (role) { roleBase = y; y -= 26 + 14; }
+    if (author) { nameBase = y; y -= 22 + 22; }
+    if (author || role) { ruleTop = y - 6; y = ruleTop - 40; }
+    const last = y;
+    const fit = fitText(c, state.title, {
+      fam, max: 66 * fam.k, min: 34 * fam.k, maxW: W - 2 * M, maxH: H * f.blk,
+      lh: fam.lh + 0.06, italic, weight: italic ? 600 : undefined
+    });
+    const n = fit.lines.length;
+    const first = last - (n - 1) * fit.lh;
+    c.font = fit.font;
+    const qTop = n ? first - capH(c, fit.px) : last;
+
+    c.save();
+    const markPx = E.key === 'square' ? 200 : 250;
+    c.font = fontOf(FAM.serif, markPx, { weight: 800 });
+    const mm = c.measureText('“');
+    const markY = Math.round(qTop - 26 - (mm.actualBoundingBoxDescent || -markPx * 0.38));
+    const markTop = markY - (mm.actualBoundingBoxAscent || markPx * 0.72);
+    c.restore();
+
+    shade(c, E, Math.min(markTop, qTop) - H * 0.2, (Math.max(state.shade, 65) / 100) * 0.9);
+    drawBrand(c, E, M, f.top, { mode: 'outlined', color: state.brand, size: 46, maxW: W * 0.58 });
+    creditTopRight(c, E);
+    if (n) {
+      c.save();
+      c.font = fontOf(FAM.serif, markPx, { weight: 800 });
+      c.textAlign = 'left';
+      c.fillStyle = state.hl;
+      c.fillText('“', M - 6, markY);
+      c.restore();
+    }
+    drawRich(c, E, fit, M, first, { color: '#FFFFFF', hl: state.hl, fx: 'shadow' });
+    if (author || role) { c.fillStyle = state.hl; c.fillRect(M, ruleTop, 72, 6); }
+    if (author) drawKicker(c, E, author.toLocaleUpperCase('fr-FR'), M, nameBase, { color: '#FFFFFF', size: 30, shadow: true });
+    if (role) drawSmall(c, E, role, M, roleBase, { size: 26, weight: 500, color: 'rgba(255,255,255,0.82)', shadow: true, maxW: W - 2 * M });
+    drawFooter(c, E, meta, handle, M, W - M, bottom, { color: 'rgba(255,255,255,0.84)', size: 22, shadow: true });
+    return fit;
+  }
+
+  function drawChiffre(c, E) {
+    const { W, H, f } = E;
+    if (photo) {
+      drawLayer(c, { x: 0, y: 0, w: W, h: H }, 'duo');
+      c.fillStyle = 'rgba(0,0,0,0.42)';
+      c.fillRect(0, 0, W, H);
+    } else {
+      const gr = c.createLinearGradient(0, 0, W, H);
+      gr.addColorStop(0, mix(state.brand, '#000000', 0.22));
+      gr.addColorStop(1, mix(state.brand, '#000000', 0.7));
+      c.fillStyle = gr;
+      c.fillRect(0, 0, W, H);
+    }
+    const fam = famFor('chiffre');
+    drawBrand(c, E, M, f.top, { mode: 'plain', color: '#FFFFFF', size: 40, maxW: W * 0.58 });
+    const kick = kickerText();
+    const figTxt = typo(state.figure.trim()).replace(/ /g, NB);
+    const figFam = fam === FAM.condensed ? BADGE_COND : fam === FAM.serif ? { family: FAM.serif.family, weight: 800 } : SANS(900);
+    const maxW = W - 2 * M;
+    let fpx = 0;
+    let fcap = 0;
+    if (figTxt) {
+      const ref = 300;
+      c.font = fontOf(figFam, ref);
+      const w0 = mw(c, figTxt) || 1;
+      fpx = Math.max(60, Math.min(fam === FAM.condensed ? 360 : 300, Math.floor((ref * maxW) / w0), (H * 0.26) / 0.72));
+      c.font = fontOf(figFam, fpx);
+      fcap = capH(c, fpx);
+    }
+    const fit = fitText(c, state.title, {
+      fam, max: 54 * fam.k, min: 30 * fam.k, maxW, maxH: H * 0.22, lh: fam.lh + 0.06,
+      weight: fam === FAM.grotesk ? 700 : undefined
+    });
+    const n = fit.lines.length;
+    c.font = fit.font;
+    const tcap = capH(c, fit.px);
+    const textH = n ? tcap + (n - 1) * fit.lh : 0;
+    const kH = kick ? 17 + 34 : 0;
+    const figH = figTxt ? fcap + 36 + 8 + 44 : 0;
+    const total = kH + figH + textH;
+    const zoneTop = f.top + 150;
+    const zoneBot = H - f.bottom - 80;
+    let y = Math.round(zoneTop + Math.max(0, (zoneBot - zoneTop - total) / 2));
+    if (kick) { drawKicker(c, E, kick, M, y + 17, { color: state.hl, size: 26 }); y += kH; }
+    if (figTxt) {
+      c.save();
+      c.font = fontOf(figFam, fpx);
+      c.textAlign = 'left';
+      c.fillStyle = state.hl;
+      c.fillText(figTxt, M - Math.round(fpx * 0.02), y + fcap);
+      c.restore();
+      y += fcap + 36;
+      c.fillStyle = state.alert;
+      c.fillRect(M, y, 96, 8);
+      y += 8 + 44;
+    }
+    drawRich(c, E, fit, M, y + tcap, { color: '#FFFFFF', hl: state.hl, fx: 'none' });
+    const meta = metaText();
+    const cr = state.credit.trim();
+    const right = handleText() || (photo && cr ? 'Photo' + NB + ': ' + typo(cr) : '');
+    drawFooter(c, E, meta, right, M, W - M, H - f.bottom, { color: 'rgba(255,255,255,0.8)', size: 22 });
+    return fit;
+  }
+
+  function boxColors() {
+    if (state.boxes === 'brand') return { box: state.brand, fg: '#FFFFFF', hl: state.hl };
+    if (state.boxes === 'black') return { box: '#0E0F12', fg: '#FFFFFF', hl: state.hl };
+    return { box: '#FFFFFF', fg: '#111216', hl: state.alert };
+  }
+  function drawSurligne(c, E) {
+    const { W, H, f } = E;
+    drawLayer(c, { x: 0, y: 0, w: W, h: H });
+    const fam = famFor('surligne');
+    const bottom = H - f.bottom;
+    const meta = metaText();
+    const handle = handleText();
+    const hasMeta = !!(meta || handle);
+    const padX = 22;
+    const fit = fitText(c, state.title, { fam, max: 60 * fam.k, min: 32 * fam.k, maxW: W - 2 * M - 2 * padX, maxH: H * f.blk, lh: 1.36 });
+    const n = fit.lines.length;
+    c.font = fit.font;
+    const cap = capH(c, fit.px);
+    const padT = Math.round(fit.px * 0.26);
+    const padB = Math.round(fit.px * 0.3);
+    const lastBase = (hasMeta ? bottom - 24 - 40 : bottom) - padB;
+    const first = lastBase - (n - 1) * fit.lh;
+    const boxTop0 = n ? first - cap - padT : lastBase;
+    const btxt = typo(state.badge.trim());
+    const g = btxt ? badgeGeom(c, btxt, badgeFam(fam), fam === FAM.condensed ? 44 : 38, W - 2 * M) : null;
+    const badgeTop = g ? boxTop0 - 16 - g.h : boxTop0;
+    shade(c, E, badgeTop - H * 0.2, (state.shade / 100) * 0.6);
+    drawBrand(c, E, M, f.top, { mode: 'outlined', color: state.brand, size: 46, maxW: W * 0.58 });
+    creditTopRight(c, E);
+    const B = boxColors();
+    c.fillStyle = B.box;
+    fit.lines.forEach((l, i) => {
+      const yb = first + i * fit.lh;
+      c.fillRect(M, Math.round(yb - cap - padT), Math.round(l.w + 2 * padX), Math.round(cap + padT + padB));
+    });
+    drawRich(c, E, fit, M + padX, first, { color: B.fg, hl: B.hl, fx: 'none' });
+    if (g) drawBadge(c, g, M, badgeTop, 'solid');
+    drawFooter(c, E, meta, handle, M, W - M, bottom, { color: 'rgba(255,255,255,0.88)', size: 24, shadow: true });
+    return fit;
+  }
+
+  /* ---------- rendu ---------- */
+  const canvas = $('out');
+  const ctx = canvas.getContext('2d');
+  const screen = $('screen');
+
+  function renderTo(c, tpl, S) {
+    const f = FORMATS[state.format];
+    c.setTransform(S, 0, 0, S, 0, 0);
+    c.globalAlpha = 1;
+    c.globalCompositeOperation = 'source-over';
+    c.shadowColor = 'rgba(0,0,0,0)';
+    c.shadowBlur = 0;
+    c.textAlign = 'left';
+    c.textBaseline = 'alphabetic';
+    c.imageSmoothingEnabled = true;
+    c.imageSmoothingQuality = 'high';
+    c.clearRect(0, 0, f.w, f.h);
+    return TPL[tpl].draw(c, { W: f.w, H: f.h, f, key: state.format, S });
+  }
+  let version = 0;
+  function render() {
+    const f = FORMATS[state.format];
+    if (canvas.width !== f.w) canvas.width = f.w;
+    if (canvas.height !== f.h) canvas.height = f.h;
+    version++;
+    updateReadout(f, renderTo(ctx, state.tpl, 1));
+    schedulePrep();
+  }
+  function updateReadout(f, fit) {
+    $('dims').textContent = f.w + ' × ' + f.h + ' px · ' + f.ratio;
+    const el = $('fit-info');
+    const n = fit ? fit.lines.length : 0;
+    el.classList.toggle('warn', !!(fit && n && fit.overflow));
+    if (!n) el.textContent = 'Pas de texte';
+    else if (fit.overflow) el.textContent = 'Texte trop long' + NB + ': raccourcis-le';
+    else el.textContent = n + ' ligne' + (n > 1 ? 's' : '') + ' · ' + Math.round(fit.px) + ' px';
+  }
+  let raf = 0;
+  function schedule() {
+    if (raf) return;
+    raf = requestAnimationFrame(() => { raf = 0; render(); });
+  }
+
+  const thumbs = Array.from(document.querySelectorAll('.tpl canvas'));
+  function renderThumbs() {
+    const f = FORMATS[state.format];
+    const tw = 216;
+    const th = Math.round((tw * f.h) / f.w);
+    for (const cv of thumbs) {
+      try {
+        if (cv.width !== tw) cv.width = tw;
+        if (cv.height !== th) cv.height = th;
+        renderTo(cv.getContext('2d'), cv.dataset.tpl, tw / f.w);
+      } catch (e) { /* une vignette ratée ne bloque pas les autres */ }
+    }
+  }
+  let sideTimer = 0;
+  function scheduleSide() {
+    clearTimeout(sideTimer);
+    sideTimer = setTimeout(() => { renderThumbs(); updateCaption(); }, 320);
+  }
+  function changed() { persist(); schedule(); scheduleSide(); }
+
+  /* ---------- messages ---------- */
+  const statusEl = $('status');
+  let statusTimer = 0;
+  function say(msg) {
+    statusEl.textContent = msg;
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => { statusEl.textContent = ''; }, 6000);
+  }
+
+  /* ---------- légende ---------- */
+  function hashtags(k) {
+    return k.split(/[·•|,/;]+/)
+      .map((s) => s.replace(/[^\p{L}\p{N}\s'’-]/gu, '').trim())
+      .filter((s) => s.length > 1)
+      .map((s) => '#' + s.split(/[\s'’-]+/).filter(Boolean).map((w) => w.charAt(0).toLocaleUpperCase('fr-FR') + w.slice(1)).join(''))
+      .join(' ');
+  }
+  function buildCaption() {
+    const clean = (s) => typo(String(s).replace(/\*/g, '').trim());
+    const parts = [];
+    const head = [];
+    const badge = state.badge.trim().replace(/[.!\s]+$/, '');
+    const kick = state.kicker.trim();
+    if (badge && ['alerte', 'bandeau', 'une', 'surligne'].indexOf(state.tpl) !== -1) head.push('🔴 ' + badge.toLocaleUpperCase('fr-FR'));
+    if (kick) head.push(clean(kick).toLocaleUpperCase('fr-FR'));
+    if (head.length) parts.push(head.join(' | '));
+    if (state.tpl === 'citation') {
+      if (state.title.trim()) parts.push('«' + NB + clean(state.title) + NB + '»');
+      const who = [state.author.trim(), state.role.trim()].filter(Boolean).map(clean).join(', ');
+      if (who) parts.push(who);
+    } else if (state.tpl === 'chiffre') {
+      const line = [clean(state.figure), clean(state.title)].filter(Boolean).join(NB + ': ');
+      if (line) parts.push(line);
+    } else if (state.title.trim()) {
+      parts.push(clean(state.title));
+    }
+    if (state.source.trim()) parts.push('Source' + NB + ': ' + clean(state.source));
+    const tags = hashtags(kick);
+    if (tags) parts.push(tags);
+    return parts.join('\n\n');
+  }
+  function updateCaption() { $('caption').value = buildCaption(); }
+
+  async function copyText(text, fallbackEl) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      if (fallbackEl) { fallbackEl.hidden = false; fallbackEl.focus(); fallbackEl.select(); }
+      return false;
+    }
+  }
+  $('copy-caption').addEventListener('click', () => {
+    copyText($('caption').value, $('caption')).then((ok) => say(ok ? 'Légende copiée.' : 'La légende est sélectionnée, copie-la avec ton clavier.'));
+  });
+
+  /* ---------- contrôles ---------- */
+  const TEXT_FIELDS = { badge: 'badge', kicker: 'kicker', title: 'title', figure: 'figure', author: 'author', role: 'role', source: 'source', credit: 'credit', name: 'name', handle: 'handle' };
+  const CHECKS = { 'show-date': 'showDate', french: 'frenchTypo', 'guides-on': 'guides' };
+  const RADIOS = { tpl: 'tpl', format: 'format', font: 'font', 'text-fx': 'textFx', 'badge-style': 'badgeStyle', panel: 'panel', boxes: 'boxes', filter: 'filter' };
+  const COLORS = { 'c-brand': 'brand', 'c-alert': 'alert', 'c-hl': 'hl' };
+
+  function updateCount() {
+    const c = state.title.replace(/\*/g, '').trim().length;
+    $('title-count').textContent = c + ' caractère' + (c > 1 ? 's' : '');
+  }
+  function updateChips() {
+    for (const chip of document.querySelectorAll('#badge-presets .chip')) {
+      chip.setAttribute('aria-pressed', String(chip.dataset.v === state.badge.trim()));
+    }
+  }
+  function syncShade() {
+    $('shade').value = state.shade;
+    $('shade-out').textContent = state.shade + NNB + '%';
+  }
+  function syncCrop() {
+    const z = Math.round(crop.zoom * 100);
+    const x = Math.round(crop.fx * 100);
+    const y = Math.round(crop.fy * 100);
+    $('zoom').value = z;
+    $('pos-x').value = x;
+    $('pos-y').value = y;
+    $('zoom-out').textContent = z + NNB + '%';
+    $('pos-x-out').textContent = x + NNB + '%';
+    $('pos-y-out').textContent = y + NNB + '%';
+  }
+  function syncInputs() {
+    for (const id in TEXT_FIELDS) $(id).value = state[TEXT_FIELDS[id]];
+    for (const id in CHECKS) $(id).checked = !!state[CHECKS[id]];
+    for (const name in RADIOS) {
+      for (const r of document.querySelectorAll('input[name="' + name + '"]')) r.checked = r.value === state[RADIOS[name]];
+    }
+    for (const id in COLORS) { $(id).value = state[COLORS[id]]; $(id + '-hex').textContent = state[COLORS[id]].toUpperCase(); }
+    syncShade();
+    updateCount();
+    updateChips();
+  }
+  function applyTpl() {
+    for (const el of document.querySelectorAll('[data-tpl]')) {
+      if (el.tagName === 'CANVAS') continue;
+      el.hidden = el.dataset.tpl.split(' ').indexOf(state.tpl) === -1;
+    }
+    $('title-label').textContent = state.tpl === 'citation' ? 'Citation' : state.tpl === 'chiffre' ? 'Explication' : 'Titre';
+    $('tpl-desc').textContent = TPL[state.tpl].desc;
+  }
+  function applyFormat() {
+    const f = FORMATS[state.format];
+    screen.style.setProperty('--ar', String(f.w / f.h));
+    applyGuides();
+  }
+  function applyGuides() {
+    const f = FORMATS[state.format];
+    $('guides').hidden = !state.guides;
+    const safe = $('g-safe');
+    const side = (M / f.w) * 100 + '%';
+    safe.style.left = side;
+    safe.style.right = side;
+    safe.style.top = (f.top / f.h) * 100 + '%';
+    safe.style.bottom = (f.bottom / f.h) * 100 + '%';
+    const story = state.format === 'story';
+    $('g-top').hidden = !story;
+    $('g-bot').hidden = !story;
+    $('g-top').style.top = '0';
+    $('g-top').style.height = (f.top / f.h) * 100 + '%';
+    $('g-bot').style.bottom = '0';
+    $('g-bot').style.height = (f.bottom / f.h) * 100 + '%';
+  }
+
+  for (const id in TEXT_FIELDS) {
+    const key = TEXT_FIELDS[id];
+    $(id).addEventListener('input', () => {
+      state[key] = $(id).value;
+      if (key === 'title') updateCount();
+      if (key === 'badge') updateChips();
+      changed();
+    });
+  }
+  for (const id in CHECKS) {
+    const key = CHECKS[id];
+    $(id).addEventListener('change', () => {
+      state[key] = $(id).checked;
+      if (key === 'guides') applyGuides();
+      changed();
+    });
+  }
+  for (const name in RADIOS) {
+    const key = RADIOS[name];
+    for (const r of document.querySelectorAll('input[name="' + name + '"]')) {
+      r.addEventListener('change', () => {
+        if (!r.checked) return;
+        state[key] = r.value;
+        if (key === 'tpl') applyTpl();
+        if (key === 'format') applyFormat();
+        changed();
+      });
+    }
+  }
+  for (const id in COLORS) {
+    const key = COLORS[id];
+    $(id).addEventListener('input', () => {
+      state[key] = $(id).value;
+      $(id + '-hex').textContent = $(id).value.toUpperCase();
+      changed();
+    });
+  }
+  for (const chip of document.querySelectorAll('#badge-presets .chip')) {
+    chip.addEventListener('click', () => {
+      state.badge = chip.dataset.v;
+      $('badge').value = state.badge;
+      updateChips();
+      changed();
+    });
+  }
+  $('shade').addEventListener('input', () => { state.shade = Number($('shade').value); syncShade(); changed(); });
+  $('zoom').addEventListener('input', () => { crop.zoom = Number($('zoom').value) / 100; syncCrop(); schedule(); scheduleSide(); });
+  $('pos-x').addEventListener('input', () => { crop.fx = Number($('pos-x').value) / 100; syncCrop(); schedule(); scheduleSide(); });
+  $('pos-y').addEventListener('input', () => { crop.fy = Number($('pos-y').value) / 100; syncCrop(); schedule(); scheduleSide(); });
+  $('today').textContent = DATE_STR;
+
+  /* ---------- lecture des fichiers ---------- */
+  function readAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(file);
+    });
+  }
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  function setPhoto(img, name) {
+    photo = img;
+    photoId++;
+    crop.zoom = 1;
+    crop.fx = 0.5;
+    crop.fy = 0.5;
+    syncCrop();
+    $('photo-name').textContent = img ? name : 'Photo d’exemple';
+    $('photo-clear').hidden = !img;
+    $('crop').hidden = !img;
+    $('crop-hint').hidden = !!img;
+    screen.classList.toggle('has-photo', !!img);
+    schedule();
+    scheduleSide();
+  }
+  async function loadPhoto(file) {
+    if (!file || !/^image\//.test(file.type)) { say('Ce fichier n’est pas une image.'); return; }
+    try {
+      const img = await loadImage(await readAsDataURL(file));
+      setPhoto(img, file.name || 'Image collée');
+    } catch (e) {
+      say('Impossible de lire cette image. Essaie un JPG ou un PNG.');
+    }
+  }
+  $('photo-input').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) loadPhoto(f);
+    e.target.value = '';
+  });
+  $('photo-clear').addEventListener('click', () => setPhoto(null, ''));
+
+  function setLogo(dataUrl) {
+    state.logo = dataUrl || '';
+    $('logo-clear').hidden = !state.logo;
+    logoImg = null;
+    if (state.logo) {
+      loadImage(state.logo).then((img) => { logoImg = img; schedule(); scheduleSide(); }, () => {
+        state.logo = '';
+        $('logo-clear').hidden = true;
+        schedule();
+      });
+    }
+    schedule();
+    scheduleSide();
+  }
+  async function loadLogo(file) {
+    if (!file || !/^image\//.test(file.type)) { say('Choisis une image pour le logo.'); return; }
+    try {
+      const img = await loadImage(await readAsDataURL(file));
+      const iw = img.naturalWidth || 600;
+      const ih = img.naturalHeight || 200;
+      const s = Math.min(1, 720 / iw, 300 / ih);
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(iw * s));
+      cv.height = Math.max(1, Math.round(ih * s));
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      setLogo(cv.toDataURL('image/png'));
+      persist();
+    } catch (e) {
+      say('Ce logo n’a pas pu être lu. Essaie un PNG.');
+    }
+  }
+  $('logo-input').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) loadLogo(f);
+    e.target.value = '';
+  });
+  $('logo-clear').addEventListener('click', () => { setLogo(''); persist(); });
+
+  /* ---------- glisser-déposer, coller ---------- */
+  let dragDepth = 0;
+  const hasFiles = (e) => !!e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') !== -1;
+  document.addEventListener('dragenter', (e) => {
+    if (!hasFiles(e)) return;
+    dragDepth++;
+    screen.classList.add('drop');
+  });
+  document.addEventListener('dragleave', (e) => {
+    if (!hasFiles(e)) return;
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (!dragDepth) screen.classList.remove('drop');
+  });
+  document.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+  document.addEventListener('drop', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    screen.classList.remove('drop');
+    const f = Array.prototype.find.call(e.dataTransfer.files, (x) => /^image\//.test(x.type));
+    if (f) loadPhoto(f);
+    else say('Dépose une image, par exemple un JPG ou un PNG.');
+  });
+  document.addEventListener('paste', (e) => {
+    const files = e.clipboardData ? Array.prototype.slice.call(e.clipboardData.files || []) : [];
+    const f = files.find((x) => /^image\//.test(x.type));
+    if (f) { e.preventDefault(); loadPhoto(f); }
+  });
+
+  /* ---------- recadrage à la souris ---------- */
+  let drag = null;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!photo || e.pointerType === 'touch' || e.button !== 0) return;
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* sans capture */ }
+    screen.classList.add('dragging');
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const rect = canvas.getBoundingClientRect();
+    const k = canvas.width / rect.width;
+    const dx = (e.clientX - drag.x) * k;
+    const dy = (e.clientY - drag.y) * k;
+    drag.x = e.clientX;
+    drag.y = e.clientY;
+    const pr = photoRect();
+    const s = Math.max(pr.w / photo.naturalWidth, pr.h / photo.naturalHeight) * crop.zoom;
+    const freeX = photo.naturalWidth * s - pr.w;
+    const freeY = photo.naturalHeight * s - pr.h;
+    if (freeX > 0.5) crop.fx = clamp(crop.fx - dx / freeX, 0, 1);
+    if (freeY > 0.5) crop.fy = clamp(crop.fy - dy / freeY, 0, 1);
+    syncCrop();
+    schedule();
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    drag = null;
+    screen.classList.remove('dragging');
+    scheduleSide();
+  };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  /* ---------- identité : code à partager ---------- */
+  const b64e = (s) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  function b64d(s) {
+    let t = s.replace(/-/g, '+').replace(/_/g, '/');
+    while (t.length % 4) t += '=';
+    return decodeURIComponent(escape(atob(t)));
+  }
+  function kitCode() {
+    const o = {};
+    KIT_KEYS.forEach((k) => { o[k] = state[k]; });
+    return 'KIT1.' + b64e(JSON.stringify(o));
+  }
+  function applyKitCode(raw) {
+    const m = String(raw).replace(/\s+/g, '').match(/KIT1\.([A-Za-z0-9+/=_-]+)/);
+    if (!m) return false;
+    try {
+      Object.assign(state, sanitize(JSON.parse(b64d(m[1])), KIT_KEYS));
+    } catch (e) {
+      return false;
+    }
+    syncInputs();
+    applyTpl();
+    applyFormat();
+    changed();
+    return true;
+  }
+  if (ON_WEB) {
+    $('kit-link').hidden = false;
+    $('kit-hint').textContent = 'Envoie le lien d’installation par WhatsApp : en l’ouvrant, l’autre téléphone récupère cette identité tout seul. Le code marche aussi, à coller ci-dessous. Le logo image ne passe pas, envoie le fichier à part.';
+  }
+  $('kit-link').addEventListener('click', () => {
+    const link = location.origin + location.pathname + '#kit=' + kitCode();
+    const out = $('kit-out');
+    out.value = link;
+    copyText(link, out).then((ok) => say(ok ? 'Lien copié. Envoie-le par WhatsApp.' : 'Le lien est sélectionné, copie-le avec ton clavier.'));
+  });
+  $('kit-copy').addEventListener('click', () => {
+    const code = kitCode();
+    const out = $('kit-out');
+    out.value = code;
+    copyText(code, out).then((ok) => say(ok ? 'Code copié. Colle-le dans WhatsApp.' : 'Le code est sélectionné, copie-le avec ton clavier.'));
+  });
+  $('kit-apply').addEventListener('click', () => {
+    const raw = $('kit-in').value;
+    if (!/KIT1\./.test(raw)) { say('Code non reconnu. Il commence par KIT1.'); return; }
+    if (applyKitCode(raw)) {
+      $('kit-in').value = '';
+      say('Identité appliquée.');
+    } else {
+      say('Ce code est incomplet. Recopie-le en entier.');
+    }
+  });
+
+  /* ---------- export ---------- */
+  let downloads = null;
+  const noDirectSave = () => { if (!STANDALONE) $('download-label').textContent = 'Obtenir l’image'; };
+  try {
+    if (!STANDALONE && window.claude && typeof window.claude.use === 'function') {
+      window.claude.use('downloads').then((ns) => {
+        downloads = ns || null;
+        if (!downloads) noDirectSave();
+      }, () => { downloads = null; noDirectSave(); });
+    } else {
+      noDirectSave();
+    }
+  } catch (e) { downloads = null; noDirectSave(); }
+
+  function directDownload(blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  let canShareFiles = false;
+  try {
+    canShareFiles = STANDALONE && typeof navigator.share === 'function' && typeof navigator.canShare === 'function'
+      && navigator.canShare({ files: [new File(['x'], 'test.jpg', { type: 'image/jpeg' })] });
+  } catch (e) { canShareFiles = false; }
+  $('share').hidden = !canShareFiles;
+  $('share-hint').hidden = !canShareFiles;
+
+  let ready = null;
+  let prepTimer = 0;
+  function prepareFile() {
+    const v = version;
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (blob) ready = { v, file: new File([blob], fileName(), { type: 'image/jpeg' }) };
+        resolve(ready && ready.v === v ? ready.file : null);
+      }, 'image/jpeg', 0.95);
+    });
+  }
+  function schedulePrep() {
+    if (!canShareFiles) return;
+    clearTimeout(prepTimer);
+    prepTimer = setTimeout(prepareFile, 600);
+  }
+  $('share').addEventListener('click', async () => {
+    updateCaption();
+    const caption = $('caption').value;
+    if (caption && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(caption).catch(() => {});
+    let file = ready && ready.v === version ? ready.file : null;
+    if (!file) {
+      say('Préparation de l’image…');
+      file = await prepareFile();
+      if (!file) { say('L’image n’a pas pu être créée. Réessaie.'); return; }
+    }
+    try {
+      await navigator.share({ files: [file] });
+      say(caption ? 'Légende copiée : colle-la dans ton post.' : '');
+    } catch (e) {
+      if (e && e.name === 'AbortError') { say(''); return; }
+      if (e && e.name === 'NotAllowedError') { say('Image prête : appuie encore une fois sur Partager.'); return; }
+      say('Le partage n’a pas marché. Utilise Télécharger.');
+    }
+  });
+
+  function fileName() {
+    const d = new Date();
+    const p = (v) => String(v).padStart(2, '0');
+    return state.tpl + '-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.jpg';
+  }
+
+  const sheet = $('sheet');
+  function openSheet(blob) {
+    readAsDataURL(blob).then((url) => {
+      $('sheet-img').src = url;
+      sheet.hidden = false;
+      $('sheet-close').focus();
+      say('');
+    }, () => say('L’image n’a pas pu être affichée. Réessaie.'));
+  }
+  function closeSheet() {
+    sheet.hidden = true;
+    $('download').focus();
+  }
+  $('sheet-close').addEventListener('click', closeSheet);
+  sheet.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); });
+
+  let busy = false;
+  async function exportImage() {
+    if (busy) return;
+    busy = true;
+    say('Préparation de l’image…');
+    try {
+      render();
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+      if (!blob) { say('L’image n’a pas pu être créée. Réessaie.'); return; }
+      if (downloads) {
+        try {
+          await downloads.save({ filename: fileName(), data: blob });
+          say('Image enregistrée.');
+          return;
+        } catch (err) {
+          const code = err && err.code;
+          if (code === 'declined') { say('Enregistrement annulé.'); return; }
+          if (code === 'rate_limited') { say('Une fenêtre d’enregistrement est déjà ouverte.'); return; }
+        }
+      }
+      if (STANDALONE) {
+        directDownload(blob);
+        say('Image téléchargée.');
+        return;
+      }
+      openSheet(blob);
+    } catch (e) {
+      say('L’image n’a pas pu être créée. Réessaie.');
+    } finally {
+      busy = false;
+    }
+  }
+  $('download').addEventListener('click', exportImage);
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+  $('kbd').textContent = isMac ? '⌘ S' : 'Ctrl + S';
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !sheet.hidden) { closeSheet(); return; }
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      exportImage();
+    }
+  });
+
+  /* ---------- polices ---------- */
+  function fontsChanged() {
+    fontEpoch++;
+    W_CACHE.clear();
+    FIT_CACHE.clear();
+    schedule();
+    scheduleSide();
+  }
+  if (document.fonts) {
+    if (typeof document.fonts.load === 'function') {
+      const sample = 'Aé’«»“';
+      Promise.all([
+        '800 76px "Archivo"', '900 200px "Archivo"', '700 40px "Archivo"', '600 24px "Archivo"', '500 26px "Archivo"',
+        '400 80px "Anton"', '700 70px "Newsreader"', '800 200px "Newsreader"', 'italic 600 60px "Newsreader"'
+      ].map((spec) => document.fonts.load(spec, sample).catch(() => null))).then(fontsChanged, fontsChanged);
+    }
+    if (typeof document.fonts.addEventListener === 'function') {
+      document.fonts.addEventListener('loadingdone', fontsChanged);
+    }
+  }
+
+  /* ---------- démarrage ---------- */
+  syncInputs();
+  syncCrop();
+  applyTpl();
+  applyFormat();
+  if (state.logo) setLogo(state.logo);
+  if (location.hash.indexOf('#kit=') === 0) {
+    const ok = applyKitCode(decodeURIComponent(location.hash.slice(5)));
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* adresse inchangée */ }
+    say(ok ? 'Identité du média appliquée.' : 'Ce lien d’installation est incomplet.');
+  }
+  render();
+  renderThumbs();
+  updateCaption();
+})();
+</script>
+
+</body>
+</html>
