@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Visuels d’actualité au format Facebook, Instagram et statut WhatsApp : six modèles, identité du média, export JPG 1080 px.">
+<meta name="description" content="Visuels d’actualité au format Facebook, Instagram et statut WhatsApp : huit modèles, identité du média, export JPG 1080 px.">
 <meta name="theme-color" content="#C9282E">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -133,10 +133,7 @@ body {
 }
 .screen canvas { display: block; width: 100%; height: 100%; }
 .screen.drop { outline: 3px dashed var(--accent); outline-offset: 5px; }
-@media (pointer: fine) {
-  .screen.has-photo canvas { cursor: grab; }
-  .screen.dragging canvas { cursor: grabbing; }
-}
+.screen.marking canvas { cursor: crosshair; touch-action: none; }
 .guides { position: absolute; inset: 0; pointer-events: none; }
 .guides .safe { position: absolute; border: 1.5px dashed rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
 .guides .zone {
@@ -151,6 +148,19 @@ body {
   font: 600 11px/1.2 var(--font-mono);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
+.mark-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
+}
+.mark-bar p { flex: 1 1 100%; margin: 0; font: 650 14px/1.35 var(--font-body); }
+.mark-bar .seg { flex: 1 1 200px; }
+.mark-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .readout {
   display: flex;
   flex-wrap: wrap;
@@ -184,6 +194,8 @@ body {
 .btn:hover { border-color: var(--ink); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-size: 16px; min-height: 50px; }
 .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn.ink { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+.btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
 .btn svg { flex: none; }
 .btn:focus-visible,
 .sr-only:focus-visible + .btn { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -234,6 +246,16 @@ body {
 }
 .eyebrow::before { content: ""; width: 8px; height: 8px; background: currentColor; }
 .group.kept .eyebrow { color: var(--muted); }
+.sub {
+  margin: 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font: 800 12px/1 var(--font-display);
+  font-stretch: 75%;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 
 .field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .label {
@@ -264,6 +286,8 @@ input::placeholder,
 textarea::placeholder { color: var(--muted); opacity: 1; }
 textarea { resize: vertical; }
 #title { min-height: 7.6em; font-weight: 550; }
+#context { min-height: 4.4em; }
+#points { min-height: 5.6em; }
 #caption { min-height: 9.5em; font-size: 14px; line-height: 1.5; }
 input[type="text"]:focus-visible,
 textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
@@ -325,13 +349,13 @@ textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px;
 .seg .f-condensed { font: 400 15px/1 var(--font-cond); letter-spacing: 0.02em; }
 .seg .f-serif { font: 700 16px/1 var(--font-serif); }
 
-.tpls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
+.tpls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 8px; }
 .tpl { position: relative; display: flex; flex-direction: column; gap: 7px; min-width: 0; cursor: pointer; }
 .tpl input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
 .tpl canvas { display: block; width: 100%; height: auto; border-radius: 3px; background: var(--well); box-shadow: 0 0 0 1px var(--line); }
 .tpl input:checked ~ canvas,
 .tpl input:focus-visible ~ canvas { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent); }
-.tpl span { font: 650 13px/1.2 var(--font-body); }
+.tpl span { font: 650 12px/1.2 var(--font-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tpl input:checked ~ span { color: var(--accent); }
 .tpl-desc { margin: 0; font-size: 13px; color: var(--muted); }
 
@@ -412,6 +436,23 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
 .sheet-card h2 { margin: 0; font: 800 22px/1.1 var(--font-display); font-stretch: 75%; }
 .sheet-card img { display: block; max-width: 100%; max-height: 58vh; width: auto; height: auto; margin: 0 auto; }
 .sheet-card p { margin: 0; font-size: 14px; color: var(--muted); }
+
+.mini {
+  position: fixed;
+  z-index: 15;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  width: 92px;
+  padding: 0;
+  border: 2px solid var(--panel);
+  border-radius: 6px;
+  background: var(--well);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  cursor: pointer;
+}
+.mini canvas { display: block; width: 100%; height: auto; }
+.mini:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -419,7 +460,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
 <div class="wrap">
   <header class="top">
     <h1 class="mark">Générateur <span class="tag">Alerte Info.</span></h1>
-    <p>Six modèles de visuels d’actualité, l’identité de ton média, et un export en 1080&nbsp;px prêt à publier.</p>
+    <p>Huit modèles de visuels d’actualité, l’identité de ton média, et un export en 1080&nbsp;px prêt à publier.</p>
   </header>
 
   <main class="desk">
@@ -440,6 +481,18 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
             <div class="zone" id="g-bot">Zone couverte par l’appli</div>
             <div class="safe" id="g-safe"></div>
           </div>
+        </div>
+      </div>
+      <div class="mark-bar" id="mark-bar" hidden>
+        <p>Trace un rectangle sur le document, dans l’aperçu.</p>
+        <div class="seg" role="radiogroup" aria-label="Type de marque">
+          <label><input type="radio" name="mark-kind" id="mk-mark" value="mark"><span>Surligner</span></label>
+          <label><input type="radio" name="mark-kind" id="mk-frame" value="frame"><span>Encadrer</span></label>
+        </div>
+        <div class="mark-actions">
+          <button type="button" class="btn" id="mark-undo">Annuler</button>
+          <button type="button" class="btn" id="mark-clear">Tout effacer</button>
+          <button type="button" class="btn ink" id="mark-done">Terminer</button>
         </div>
       </div>
       <div class="readout">
@@ -471,6 +524,8 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
           <label class="tpl"><input type="radio" name="tpl" id="tpl-citation" value="citation"><canvas data-tpl="citation" width="216" height="270" aria-hidden="true"></canvas><span>Citation</span></label>
           <label class="tpl"><input type="radio" name="tpl" id="tpl-chiffre" value="chiffre"><canvas data-tpl="chiffre" width="216" height="270" aria-hidden="true"></canvas><span>Chiffre</span></label>
           <label class="tpl"><input type="radio" name="tpl" id="tpl-surligne" value="surligne"><canvas data-tpl="surligne" width="216" height="270" aria-hidden="true"></canvas><span>Surligné</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-duo" value="duo"><canvas data-tpl="duo" width="216" height="270" aria-hidden="true"></canvas><span>Duo</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-dossier" value="dossier"><canvas data-tpl="dossier" width="216" height="270" aria-hidden="true"></canvas><span>Dossier</span></label>
         </div>
         <p class="tpl-desc" id="tpl-desc"></p>
       </section>
@@ -489,7 +544,30 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
             <span class="file-name" id="photo-name">Photo d’exemple</span>
             <button type="button" class="linkish" id="photo-clear" hidden>Retirer</button>
           </div>
-          <p class="hint only-fine">Tu peux aussi déposer une image sur la page, ou la coller avec Ctrl+V.</p>
+          <p class="hint only-fine">Tu peux aussi déposer une image sur l’aperçu, ou la coller avec Ctrl+V.</p>
+        </div>
+
+        <div class="field" data-tpl="duo dossier">
+          <label class="label" for="cap1">Nom sur la photo 1 <small>facultatif</small></label>
+          <input type="text" id="cap1" maxlength="40" autocomplete="off">
+        </div>
+
+        <div class="field" data-tpl="duo dossier">
+          <span class="label" id="photo2-label">Photo 2</span>
+          <div class="file-row">
+            <input type="file" id="photo2-input" class="sr-only" accept="image/*" aria-labelledby="photo2-label">
+            <label class="btn" for="photo2-input">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13V3.5M6 7.5l4-4 4 4M3.5 12.5v3a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3"/></svg>
+              Importer la photo 2
+            </label>
+            <span class="file-name" id="photo2-name">Photo d’exemple</span>
+            <button type="button" class="linkish" id="photo2-clear" hidden>Retirer</button>
+          </div>
+        </div>
+
+        <div class="field" data-tpl="duo dossier">
+          <label class="label" for="cap2">Nom sur la photo 2 <small>facultatif</small></label>
+          <input type="text" id="cap2" maxlength="40" autocomplete="off">
         </div>
 
         <div class="field" data-tpl="alerte bandeau une surligne">
@@ -506,10 +584,10 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
           <p class="hint">Laisse vide pour un visuel sans étiquette.</p>
         </div>
 
-        <div class="field" data-tpl="alerte bandeau une citation chiffre">
+        <div class="field" data-tpl="alerte bandeau une citation chiffre duo dossier">
           <label class="label" for="kicker">Rubrique <small>facultatif</small></label>
           <input type="text" id="kicker" maxlength="40" autocomplete="off" placeholder="Tchad · Politique">
-          <p class="hint">S’affiche en petites capitales. Elle sert aussi à créer les hashtags de la légende.</p>
+          <p class="hint">S’affiche en petites capitales, ou dans la pastille rouge des modèles Duo et Dossier. Elle sert aussi à créer les hashtags de la légende.</p>
         </div>
 
         <div class="field" data-tpl="chiffre">
@@ -523,15 +601,69 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
           <p class="hint">Entoure des mots d’astérisques pour les colorer, comme <code>*ceci*</code>. Passe à la ligne pour forcer une coupure.</p>
         </div>
 
-        <div class="two" data-tpl="citation">
+        <div class="field" data-tpl="dossier">
+          <label class="label" for="quote">Citation courte <small>facultatif</small></label>
+          <input type="text" id="quote" maxlength="80" autocomplete="off">
+          <p class="hint">Les guillemets sont ajoutés tout seuls.</p>
+        </div>
+
+        <div class="two" data-tpl="citation dossier">
           <div class="field">
             <label class="label" for="author">Auteur</label>
             <input type="text" id="author" maxlength="40" autocomplete="off" placeholder="Prénom Nom">
           </div>
           <div class="field">
             <label class="label" for="role">Fonction</label>
-            <input type="text" id="role" maxlength="60" autocomplete="off" placeholder="Ministre, porte-parole…">
+            <input type="text" id="role" maxlength="60" autocomplete="off" placeholder="Ministre, avocat, porte-parole…">
           </div>
+        </div>
+
+        <div class="field" data-tpl="dossier">
+          <label class="label" for="context">Contexte <small>facultatif</small></label>
+          <textarea id="context" rows="2" maxlength="180"></textarea>
+          <p class="hint">Une phrase sur les faits&nbsp;: qui, quoi, quand.</p>
+        </div>
+
+        <h3 class="sub" data-tpl="dossier">Document</h3>
+
+        <div class="field" data-tpl="dossier">
+          <span class="label" id="doc-label">Image du document <small>scan ou capture</small></span>
+          <div class="file-row">
+            <input type="file" id="doc-input" class="sr-only" accept="image/*" aria-labelledby="doc-label">
+            <label class="btn" for="doc-input">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13V3.5M6 7.5l4-4 4 4M3.5 12.5v3a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3"/></svg>
+              Importer le document
+            </label>
+            <span class="file-name" id="doc-name">Document d’exemple</span>
+            <button type="button" class="linkish" id="doc-clear" hidden>Retirer</button>
+          </div>
+          <div class="file-row">
+            <button type="button" class="btn" id="mark-start" aria-pressed="false">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 3.5l4 4-7 7H5.5v-4zM3 17h14"/></svg>
+              <span id="mark-start-label">Surligner un passage</span>
+            </button>
+            <span class="count" id="mark-count"></span>
+          </div>
+          <p class="hint">Choisis le passage à agrandir dans la section Image, avec les réglages du document.</p>
+        </div>
+
+        <div class="field" data-tpl="dossier">
+          <label class="label" for="doc-title">Titre du document <small>facultatif</small></label>
+          <input type="text" id="doc-title" maxlength="60" autocomplete="off" placeholder="Journal officiel · Janvier 2023">
+        </div>
+
+        <div class="field" data-tpl="dossier">
+          <span class="label" id="dm-label">Affichage du document</span>
+          <div class="seg" role="radiogroup" aria-labelledby="dm-label">
+            <label><input type="radio" name="doc-mode" id="dm-both" value="both"><span>Page et extrait</span></label>
+            <label><input type="radio" name="doc-mode" id="dm-zoom" value="zoom"><span>Extrait seul</span></label>
+          </div>
+        </div>
+
+        <div class="field" data-tpl="dossier">
+          <label class="label" for="points">Points sous le document <small>facultatif</small></label>
+          <textarea id="points" rows="3"></textarea>
+          <p class="hint">Un point par ligne, par exemple <code>*Art. 85* · Sanctions</code>.</p>
         </div>
 
         <div class="two">
@@ -549,16 +681,24 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
       </section>
 
       <section class="group" aria-labelledby="g-photo">
-        <h2 class="eyebrow" id="g-photo">Photo</h2>
+        <h2 class="eyebrow" id="g-photo">Image</h2>
+        <div class="field" id="target-field" hidden>
+          <span class="label" id="target-label">Image à régler</span>
+          <div class="seg" role="radiogroup" aria-labelledby="target-label">
+            <label><input type="radio" name="crop-target" id="tg-p1" value="p1"><span>Photo 1</span></label>
+            <label id="tg-p2-wrap"><input type="radio" name="crop-target" id="tg-p2" value="p2"><span>Photo 2</span></label>
+            <label id="tg-doc-wrap"><input type="radio" name="crop-target" id="tg-doc" value="doc"><span>Document</span></label>
+          </div>
+        </div>
         <p class="hint" id="crop-hint">Importe une photo dans Contenu pour la recadrer.</p>
         <div class="ranges" id="crop" hidden>
-          <label class="range" for="zoom"><span>Zoom</span><input type="range" id="zoom" min="100" max="300" step="1" value="100"><output id="zoom-out" for="zoom">100 %</output></label>
+          <label class="range" for="zoom"><span id="zoom-name">Zoom</span><input type="range" id="zoom" min="100" max="400" step="1" value="100"><output id="zoom-out" for="zoom">100 %</output></label>
           <label class="range" for="pos-x"><span>Horizontal</span><input type="range" id="pos-x" min="0" max="100" step="1" value="50"><output id="pos-x-out" for="pos-x">50 %</output></label>
           <label class="range" for="pos-y"><span>Vertical</span><input type="range" id="pos-y" min="0" max="100" step="1" value="50"><output id="pos-y-out" for="pos-y">50 %</output></label>
-          <p class="hint only-fine">Tu peux aussi faire glisser la photo dans l’aperçu.</p>
+          <p class="hint only-fine">Tu peux aussi faire glisser l’image dans l’aperçu.</p>
         </div>
         <div class="field">
-          <span class="label" id="filter-label">Traitement</span>
+          <span class="label" id="filter-label">Traitement des photos</span>
           <div class="seg" role="radiogroup" aria-labelledby="filter-label">
             <label><input type="radio" name="filter" id="flt-none" value="none"><span>Normal</span></label>
             <label><input type="radio" name="filter" id="flt-bw" value="bw"><span>N&amp;B</span></label>
@@ -644,8 +784,8 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
           </div>
         </div>
 
-        <div class="field" data-tpl="une">
-          <span class="label" id="panel-label">Panneau du modèle Une</span>
+        <div class="field" data-tpl="une duo dossier">
+          <span class="label" id="panel-label">Panneau</span>
           <div class="seg" role="radiogroup" aria-labelledby="panel-label">
             <label><input type="radio" name="panel" id="panel-dark" value="dark"><span>Sombre</span></label>
             <label><input type="radio" name="panel" id="panel-light" value="light"><span>Clair</span></label>
@@ -692,6 +832,8 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
   </div>
 </div>
 
+<button type="button" class="mini" id="mini" hidden aria-label="Revenir à l’aperçu"><canvas id="mini-canvas" width="184" height="230" aria-hidden="true"></canvas></button>
+
 <script>
 (() => {
   'use strict';
@@ -703,6 +845,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
   const FRAMED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
   const STANDALONE = !FRAMED && !(window.claude && typeof window.claude.use === 'function');
   const ON_WEB = STANDALONE && /^https?:$/.test(location.protocol);
+  const reduceMotion = (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
 
   /* ---------- formats, polices, modèles ---------- */
   const FORMATS = {
@@ -723,7 +866,9 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     une:      { font: 'serif',   desc: 'Photo en haut, panneau éditorial en bas, pour les sujets de fond.', draw: drawUne },
     citation: { font: 'serif',   desc: 'Une phrase forte et la personne qui l’a dite.', draw: drawCitation },
     chiffre:  { font: 'grotesk', desc: 'Un nombre clé mis en avant, avec son explication.', draw: drawChiffre },
-    surligne: { font: 'grotesk', desc: 'Texte posé dans des boîtes, très lisible sur mobile.', draw: drawSurligne }
+    surligne: { font: 'grotesk', desc: 'Texte posé dans des boîtes, très lisible sur mobile.', draw: drawSurligne },
+    duo:      { font: 'grotesk', desc: 'Deux photos côte à côte avec leurs noms, pour relier ou opposer deux personnes.', draw: drawDuo },
+    dossier:  { font: 'grotesk', desc: 'Deux photos, une citation et un document à l’appui, pour les sujets qui demandent des preuves.', draw: drawDossier }
   };
   const famFor = (tpl) => FAM[state.font === 'auto' ? TPL[tpl].font : state.font];
   const badgeFam = (fam) => (fam === FAM.condensed ? BADGE_COND : SANS(800));
@@ -746,6 +891,14 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     figure: '85 %',
     author: 'Prénom Nom',
     role: 'Fonction',
+    cap1: 'Nom de la 1re personne',
+    cap2: 'Nom de la 2e personne',
+    quote: 'Une phrase forte',
+    context: 'Le contexte en une phrase : qui, quoi, quand.',
+    docTitle: 'Document officiel · Date',
+    docMode: 'both',
+    points: '*Art. 3* · Surligner l’essentiel\n*Art. 4* · Encadrer une phrase',
+    markKind: 'mark',
     source: '',
     credit: '',
     showDate: true,
@@ -775,7 +928,9 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     panel: ['dark', 'light', 'brand'],
     boxes: ['white', 'brand', 'black'],
     format: Object.keys(FORMATS),
-    filter: ['none', 'bw', 'duo', 'vivid']
+    filter: ['none', 'bw', 'duo', 'vivid'],
+    docMode: ['both', 'zoom'],
+    markKind: ['mark', 'frame']
   };
   const COLOR_KEYS = ['brand', 'alert', 'hl'];
 
@@ -891,7 +1046,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     let v = W_CACHE.get(key);
     if (v === undefined) {
       v = c.measureText(text).width;
-      if (W_CACHE.size > 8000) W_CACHE.clear();
+      if (W_CACHE.size > 12000) W_CACHE.clear();
       W_CACHE.set(key, v);
     }
     return v;
@@ -944,11 +1099,11 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
   let fontEpoch = 0;
   const FIT_CACHE = new Map();
   function fitText(c, text, o) {
-    const key = [text, o.fam.family, o.weight || o.fam.weight, o.italic ? 1 : 0, Math.round(o.max), Math.round(o.min),
+    const key = [text, o.fam.family, o.weight || o.fam.weight, o.italic ? 1 : 0, o.raw ? 1 : 0, Math.round(o.max), Math.round(o.min),
       Math.round(o.maxW), Math.round(o.maxH), o.lh, fontEpoch, state.frenchTypo ? 1 : 0].join('|');
     const hit = FIT_CACHE.get(key);
     if (hit) return hit;
-    const paras = parseRich(typo(text));
+    const paras = parseRich(o.raw ? text : typo(text));
     let px = o.min;
     let overflow = true;
     for (let p = o.max; p >= o.min; p -= 2) {
@@ -959,9 +1114,15 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     }
     c.font = fontOf(o.fam, px, o);
     const res = { px, overflow, font: c.font, lh: px * o.lh, lines: wrapAll(c, paras, o.maxW, true) };
-    if (FIT_CACHE.size > 120) FIT_CACHE.clear();
+    if (FIT_CACHE.size > 400) FIT_CACHE.clear();
     FIT_CACHE.set(key, res);
     return res;
+  }
+  function textBlockH(c, fit) {
+    const n = fit.lines.length;
+    if (!n) return 0;
+    c.font = fit.font;
+    return capH(c, fit.px) + (n - 1) * fit.lh + fit.px * 0.24;
   }
 
   function drawRich(c, E, fit, x, first, o) {
@@ -1022,8 +1183,16 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     while (t.length > 1 && mw(c, t + '…') > maxW) t = t.slice(0, -1);
     return t.trimEnd() + '…';
   }
+  function fitSpaced(c, text, maxW, sp) {
+    if (spacedWidth(c, text, sp) <= maxW) return text;
+    let t = text;
+    while (t.length > 1 && spacedWidth(c, t + '…', sp) > maxW) t = t.slice(0, -1);
+    return t.trimEnd() + '…';
+  }
   const kickerText = () => typo(state.kicker.trim()).toLocaleUpperCase('fr-FR');
   const handleText = () => typo(state.handle.trim());
+  const quoteText = () => state.quote.trim().replace(/^[«"“”„\s]+|[»"“”\s]+$/g, '').trim();
+  const pointsList = () => state.points.split('\n').map((l) => l.trim()).filter((l) => l.replace(/\*/g, '').trim()).slice(0, 6);
   function metaText() {
     const parts = [];
     const src = state.source.trim();
@@ -1033,6 +1202,16 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
   }
 
   /* ---------- éléments communs ---------- */
+  function rrect(c, x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+    c.beginPath();
+    c.moveTo(x + rr, y);
+    c.arcTo(x + w, y, x + w, y + h, rr);
+    c.arcTo(x + w, y + h, x, y + h, rr);
+    c.arcTo(x, y + h, x, y, rr);
+    c.arcTo(x, y, x + w, y, rr);
+    c.closePath();
+  }
   function drawKicker(c, E, text, x, base, o) {
     c.save();
     const px = o.size || 24;
@@ -1139,6 +1318,35 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     c.restore();
   }
 
+  function pillGeom(c, text, maxW, px) {
+    const f = SANS(800);
+    let size = Math.max(14, Math.round(px));
+    let padX = Math.round(size * 0.6);
+    c.font = fontOf(f, size);
+    let tw = spacedWidth(c, text, size * 0.05);
+    if (tw + 2 * padX > maxW) {
+      size = Math.max(14, Math.floor((size * (maxW - 2 * padX)) / tw));
+      padX = Math.round(size * 0.6);
+      c.font = fontOf(f, size);
+      tw = spacedWidth(c, text, size * 0.05);
+    }
+    const cap = capH(c, size);
+    const padY = Math.round(size * 0.52);
+    return { text, size, sp: size * 0.05, padX, padY, cap, w: Math.round(Math.min(maxW, tw + 2 * padX)), h: Math.round(cap + 2 * padY) };
+  }
+  function drawPill(c, g, x, top) {
+    c.save();
+    c.fillStyle = state.alert;
+    rrect(c, x, top, g.w, g.h, Math.round(g.h * 0.24));
+    c.fill();
+    c.clip();
+    c.font = fontOf(SANS(800), g.size);
+    c.textAlign = 'left';
+    c.fillStyle = '#FFFFFF';
+    drawSpaced(c, g.text, x + g.padX, top + g.padY + g.cap, g.sp);
+    c.restore();
+  }
+
   function shade(c, E, fromY, alpha) {
     const a = alpha !== undefined ? alpha : (state.shade / 100) * 0.85;
     if (a <= 0) return;
@@ -1151,35 +1359,138 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     c.fillRect(0, start, E.W, E.H - start);
   }
 
-  /* ---------- photo : calques mis en cache ---------- */
-  let photo = null;
-  let photoId = 0;
+  /* ---------- images : photo 1, photo 2, document ---------- */
+  const DOC_SAMPLE_CROP = { zoom: 1.4, fx: 0, fy: 0.56 };
+  const DOC_CROP = { zoom: 1.3, fx: 0, fy: 0.3 };
+  const slots = {
+    p1: { img: null, id: 0, crop: { zoom: 1, fx: 0.5, fy: 0.5 } },
+    p2: { img: null, id: 0, crop: { zoom: 1, fx: 0.5, fy: 0.5 } },
+    doc: { img: null, id: 0, crop: Object.assign({}, DOC_SAMPLE_CROP), marks: null }
+  };
+  let imgSeq = 0;
   let logoImg = null;
-  const crop = { zoom: 1, fx: 0.5, fy: 0.5 };
+  let tempMark = null;
   const layers = new Map();
   const scratch = document.createElement('canvas');
 
-  function drawSample(t, w, h) {
+  let sampleDoc = null;
+  function getSampleDoc() {
+    if (!sampleDoc || sampleDoc.epoch !== fontEpoch) sampleDoc = makeSampleDoc();
+    return sampleDoc;
+  }
+  function makeSampleDoc() {
+    const W = 900;
+    const H = 1272;
+    const X = 64;
+    const maxW = W - 2 * X;
+    const cv = document.createElement('canvas');
+    cv.width = W;
+    cv.height = H;
+    const t = cv.getContext('2d');
+    const fam = FAM.grotesk.family;
+    t.fillStyle = '#FFFFFF';
+    t.fillRect(0, 0, W, H);
+    t.textAlign = 'center';
+    t.fillStyle = '#1C1C1C';
+    t.font = '800 32px ' + fam;
+    t.fillText('DOCUMENT D’EXEMPLE', W / 2, 96);
+    t.font = '500 21px ' + fam;
+    t.fillStyle = '#5A5A5A';
+    t.fillText('Remplace-le par ton propre document', W / 2, 130);
+    t.fillStyle = '#1C1C1C';
+    t.fillRect(X, 158, maxW, 3);
+    t.textAlign = 'left';
+    const texts = [
+      'Importe ton document dans Contenu : un scan, une capture d’écran ou un communiqué officiel.',
+      'Choisis le passage à agrandir dans la section Image, ou fais glisser l’extrait dans l’aperçu.',
+      'Touche « Surligner un passage », puis trace un rectangle sur l’extrait pour mettre une phrase en valeur.',
+      'Écris sous le document les points à retenir, un par ligne, par exemple les articles concernés.',
+      'Télécharge l’image, puis publie-la avec la légende prête à copier.'
+    ];
+    const info = [];
+    let y = 226;
+    texts.forEach((txt, i) => {
+      t.font = '800 26px ' + fam;
+      t.fillStyle = '#1C1C1C';
+      const head = 'Article ' + (i + 1) + ' :';
+      t.fillText(head, X, y);
+      const headW = t.measureText(head).width;
+      const headBase = y;
+      y += 42;
+      t.font = '500 24px ' + fam;
+      t.fillStyle = '#2E2E2E';
+      const lines = [];
+      let line = '';
+      for (const w of txt.split(' ')) {
+        const test = line ? line + ' ' + w : w;
+        if (line && t.measureText(test).width > maxW) { lines.push(line); line = w; } else { line = test; }
+      }
+      if (line) lines.push(line);
+      const rows = [];
+      for (const l of lines) {
+        t.fillText(l, X, y);
+        rows.push({ base: y, w: t.measureText(l).width });
+        y += 36;
+      }
+      info.push({ headBase, headW, rows });
+      y += 44;
+    });
+    const marks = [];
+    if (info[2]) {
+      info[2].rows.forEach((r) => marks.push({ x0: (X - 6) / W, y0: (r.base - 23) / H, x1: (X + r.w + 6) / W, y1: (r.base + 9) / H, kind: 'mark' }));
+    }
+    if (info[3]) {
+      const a = info[3];
+      marks.push({ x0: (X - 14) / W, y0: (a.headBase - 34) / H, x1: (X + a.headW + 14) / W, y1: (a.headBase + 14) / H, kind: 'frame' });
+    }
+    return { cv, marks, epoch: fontEpoch };
+  }
+
+  function sourceOf(key) {
+    const s = slots[key];
+    if (s.img) return { img: s.img, w: s.img.naturalWidth || s.img.width, h: s.img.naturalHeight || s.img.height, id: 'img' + s.id };
+    if (key === 'doc') {
+      const d = getSampleDoc();
+      return { img: d.cv, w: d.cv.width, h: d.cv.height, id: 'sample' + d.epoch };
+    }
+    return null;
+  }
+  function coverGeom(iw, ih, w, h, crop) {
+    const s = Math.max(w / iw, h / ih) * crop.zoom;
+    const dw = iw * s;
+    const dh = ih * s;
+    return { dw, dh, ox: (w - dw) * crop.fx, oy: (h - dh) * crop.fy };
+  }
+
+  const SAMPLE_LOOKS = {
+    1: { sky: ['#2C3D66', '#19213D', '#0A0D18'], glow: '255,166,92', gx: 0.78, seed: 11 },
+    2: { sky: ['#4A2F52', '#251A33', '#0D0A14'], glow: '110,200,255', gx: 0.25, seed: 41 }
+  };
+  function drawSample(t, w, h, variant) {
+    const L = SAMPLE_LOOKS[variant] || SAMPLE_LOOKS[1];
     const sky = t.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, '#2C3D66');
-    sky.addColorStop(0.55, '#19213D');
-    sky.addColorStop(1, '#0A0D18');
+    sky.addColorStop(0, L.sky[0]);
+    sky.addColorStop(0.55, L.sky[1]);
+    sky.addColorStop(1, L.sky[2]);
     t.fillStyle = sky;
     t.fillRect(0, 0, w, h);
-    const glow = t.createRadialGradient(w * 0.78, h * 0.2, 0, w * 0.78, h * 0.2, w * 0.75);
-    glow.addColorStop(0, 'rgba(255,166,92,0.42)');
-    glow.addColorStop(1, 'rgba(255,166,92,0)');
+    const gr = Math.max(w, h) * 0.6;
+    const glow = t.createRadialGradient(w * L.gx, h * 0.2, 0, w * L.gx, h * 0.2, gr);
+    glow.addColorStop(0, 'rgba(' + L.glow + ',0.42)');
+    glow.addColorStop(1, 'rgba(' + L.glow + ',0)');
     t.fillStyle = glow;
     t.fillRect(0, 0, w, h);
-    let seed = 11;
+    const k = Math.max(0.55, Math.sqrt((w * h) / (1080 * 1350)));
+    const count = Math.max(14, Math.round(36 * k * k));
+    let seed = L.seed;
     const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     const tints = ['255,196,128', '255,132,98', '122,170,255', '255,222,160', '196,156,255'];
     t.save();
     t.globalCompositeOperation = 'screen';
-    for (let i = 0; i < 36; i++) {
+    for (let i = 0; i < count; i++) {
       const x = rnd() * w;
       const y = rnd() * h * 0.78;
-      const r = 26 + rnd() * 112;
+      const r = (26 + rnd() * 112) * k;
       const col = tints[Math.floor(rnd() * tints.length)];
       const a = 0.07 + rnd() * 0.22;
       const b = t.createRadialGradient(x, y, r * 0.15, x, y, r);
@@ -1193,13 +1504,8 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     }
     t.restore();
   }
-  function drawPhotoCover(t, w, h) {
-    const s = Math.max(w / photo.naturalWidth, h / photo.naturalHeight) * crop.zoom;
-    const dw = photo.naturalWidth * s;
-    const dh = photo.naturalHeight * s;
-    t.drawImage(photo, (w - dw) * crop.fx, (h - dh) * crop.fy, dw, dh);
-  }
-  function paintLayer(cv, filter) {
+
+  function paintLayer(cv, key, filter, crop) {
     const w = cv.width;
     const h = cv.height;
     if (scratch.width !== w) scratch.width = w;
@@ -1209,8 +1515,17 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     s.globalCompositeOperation = 'source-over';
     s.globalAlpha = 1;
     s.clearRect(0, 0, w, h);
+    s.imageSmoothingEnabled = true;
     s.imageSmoothingQuality = 'high';
-    if (photo) { s.fillStyle = '#000000'; s.fillRect(0, 0, w, h); drawPhotoCover(s, w, h); } else drawSample(s, w, h);
+    const src = sourceOf(key);
+    if (src) {
+      s.fillStyle = key === 'doc' ? '#FFFFFF' : '#000000';
+      s.fillRect(0, 0, w, h);
+      const g = coverGeom(src.w, src.h, w, h, crop);
+      s.drawImage(src.img, g.ox, g.oy, g.dw, g.dh);
+    } else {
+      drawSample(s, w, h, key === 'p2' ? 2 : 1);
+    }
 
     const t = cv.getContext('2d');
     t.setTransform(1, 0, 0, 1, 0, 0);
@@ -1242,31 +1557,142 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
       }
     }
   }
-  function drawLayer(c, rect, filterOverride) {
-    const filter = filterOverride || state.filter;
-    const sizeKey = rect.w + 'x' + rect.h + '|' + filter;
-    const contentKey = [photo ? photoId : 'exemple', crop.zoom, crop.fx, crop.fy, filter === 'duo' ? state.brand : ''].join('|');
+  function drawLayer(c, key, rect, o) {
+    const filter = (o && o.filter) || 'none';
+    const crop = (o && o.crop) || slots[key].crop;
+    const lw = Math.max(1, Math.round(rect.w));
+    const lh = Math.max(1, Math.round(rect.h));
+    const sizeKey = key + '|' + lw + 'x' + lh + '|' + filter + '|' + ((o && o.tag) || '');
+    const src = sourceOf(key);
+    const contentKey = [src ? src.id : 'sample', crop.zoom.toFixed(4), crop.fx.toFixed(4), crop.fy.toFixed(4), filter === 'duo' ? state.brand : ''].join('|');
     let L = layers.get(sizeKey);
     if (!L) {
-      if (layers.size >= 6) layers.delete(layers.keys().next().value);
+      if (layers.size >= 16) layers.delete(layers.keys().next().value);
       const cv = document.createElement('canvas');
-      cv.width = rect.w;
-      cv.height = rect.h;
+      cv.width = lw;
+      cv.height = lh;
       L = { cv, key: '' };
       layers.set(sizeKey, L);
     }
-    if (L.key !== contentKey) { paintLayer(L.cv, filter); L.key = contentKey; }
+    if (L.key !== contentKey) { paintLayer(L.cv, key, filter, crop); L.key = contentKey; }
     c.drawImage(L.cv, rect.x, rect.y, rect.w, rect.h);
+    return src ? coverGeom(src.w, src.h, rect.w, rect.h, crop) : null;
   }
-  function photoRect() {
-    const f = FORMATS[state.format];
-    return state.tpl === 'une' ? { w: f.w, h: Math.round(f.h * f.une) } : { w: f.w, h: f.h };
+  function photoLayer(c, E, key, rect, filter) {
+    const g = drawLayer(c, key, rect, { filter: filter || state.filter });
+    if (E.regions) E.regions.push({ key, kind: 'photo', x: rect.x, y: rect.y, w: rect.w, h: rect.h, g });
+  }
+  function drawPhotoCell(c, E, key, rect, caption) {
+    photoLayer(c, E, key, rect);
+    const a = (state.shade / 100) * 0.8;
+    if (a > 0) {
+      const top = rect.y + rect.h * 0.5;
+      const g = c.createLinearGradient(0, top, 0, rect.y + rect.h);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(0,0,0,' + a.toFixed(3) + ')');
+      c.fillStyle = g;
+      c.fillRect(rect.x, top, rect.w, rect.y + rect.h - top);
+    }
+    const t = typo(String(caption || '').trim());
+    if (t) {
+      const size = Math.round(clamp(rect.w * 0.056, 22, 32));
+      const pad = Math.round(size * 0.95);
+      drawSmall(c, E, t, rect.x + pad, rect.y + rect.h - pad, { size, weight: 700, color: '#FFFFFF', shadow: true, maxW: rect.w - 2 * pad });
+    }
+  }
+
+  /* ---------- surlignage du document ---------- */
+  const normMark = (m) => ({ x0: Math.min(m.x0, m.x1), y0: Math.min(m.y0, m.y1), x1: Math.max(m.x0, m.x1), y1: Math.max(m.y0, m.y1), kind: m.kind });
+  function docMarks() {
+    const s = slots.doc;
+    if (s.marks) return s.marks;
+    return s.img ? [] : getSampleDoc().marks;
+  }
+  function ownMarks() {
+    const s = slots.doc;
+    if (!s.marks) s.marks = docMarks().map((m) => Object.assign({}, m));
+    return s.marks;
+  }
+  function drawMarks(c, rect, g) {
+    if (!g) return;
+    const list = docMarks().slice();
+    if (tempMark) list.push(normMark(tempMark));
+    if (!list.length) return;
+    c.save();
+    c.beginPath();
+    c.rect(rect.x, rect.y, rect.w, rect.h);
+    c.clip();
+    for (const m of list) {
+      const x = rect.x + g.ox + m.x0 * g.dw;
+      const y = rect.y + g.oy + m.y0 * g.dh;
+      const w = (m.x1 - m.x0) * g.dw;
+      const h = (m.y1 - m.y0) * g.dh;
+      if (w < 1 || h < 1) continue;
+      if (m.kind === 'frame') {
+        c.globalCompositeOperation = 'source-over';
+        c.globalAlpha = 1;
+        c.strokeStyle = state.alert;
+        c.lineWidth = Math.max(2, Math.min(5, rect.w * 0.01));
+        c.strokeRect(x, y, w, h);
+      } else {
+        c.globalCompositeOperation = 'multiply';
+        c.globalAlpha = 0.62;
+        c.fillStyle = state.hl;
+        rrect(c, x, y, w, h, Math.min(6, h * 0.25));
+        c.fill();
+      }
+    }
+    c.restore();
+  }
+  function drawDocPanels(c, E, rect, P) {
+    const src = sourceOf('doc');
+    const both = state.docMode === 'both' && rect.w > 360;
+    const gap = Math.round(rect.w * 0.035);
+    const pw = both ? Math.round((rect.w - gap) * 0.38) : 0;
+    const zr = { x: rect.x + (both ? pw + gap : 0), y: rect.y, w: rect.w - (both ? pw + gap : 0), h: rect.h };
+    c.fillStyle = '#FFFFFF';
+    c.fillRect(zr.x, zr.y, zr.w, zr.h);
+    const gz = drawLayer(c, 'doc', zr, { crop: slots.doc.crop, tag: 'zoom' });
+    if (E.regions) E.regions.push({ key: 'doc', kind: 'doczoom', x: zr.x, y: zr.y, w: zr.w, h: zr.h, g: gz });
+    drawMarks(c, zr, gz);
+    const bw = Math.max(3, Math.round(rect.w * 0.006));
+    c.strokeStyle = state.alert;
+    c.lineWidth = bw;
+    c.strokeRect(zr.x + bw / 2, zr.y + bw / 2, zr.w - bw, zr.h - bw);
+    if (!both) return;
+    const pr = { x: rect.x, y: rect.y, w: pw, h: rect.h };
+    const win = { x0: -gz.ox / gz.dw, y0: -gz.oy / gz.dh, x1: (zr.w - gz.ox) / gz.dw, y1: (zr.h - gz.oy) / gz.dh };
+    const base = coverGeom(src.w, src.h, pr.w, pr.h, { zoom: 1, fx: 0.5, fy: 0.5 });
+    const freeX = base.dw - pr.w;
+    const freeY = base.dh - pr.h;
+    const q = (v) => Math.round(v * 200) / 200;
+    const pc = {
+      zoom: 1,
+      fx: freeX > 0.5 ? q(clamp((((win.x0 + win.x1) / 2) * base.dw - pr.w / 2) / freeX, 0, 1)) : 0.5,
+      fy: freeY > 0.5 ? q(clamp((((win.y0 + win.y1) / 2) * base.dh - pr.h / 2) / freeY, 0, 1)) : 0.5
+    };
+    c.fillStyle = '#FFFFFF';
+    c.fillRect(pr.x, pr.y, pr.w, pr.h);
+    const gp = drawLayer(c, 'doc', pr, { crop: pc, tag: 'page' });
+    if (E.regions) E.regions.push({ key: 'doc', kind: 'docpage', x: pr.x, y: pr.y, w: pr.w, h: pr.h, g: gp });
+    drawMarks(c, pr, gp);
+    c.save();
+    c.beginPath();
+    c.rect(pr.x, pr.y, pr.w, pr.h);
+    c.clip();
+    c.strokeStyle = state.alert;
+    c.lineWidth = Math.max(2, Math.round(bw * 0.75));
+    c.strokeRect(pr.x + gp.ox + win.x0 * gp.dw, pr.y + gp.oy + win.y0 * gp.dh, (win.x1 - win.x0) * gp.dw, (win.y1 - win.y0) * gp.dh);
+    c.restore();
+    c.strokeStyle = P.rule;
+    c.lineWidth = 2;
+    c.strokeRect(pr.x + 1, pr.y + 1, pr.w - 2, pr.h - 2);
   }
 
   /* ---------- modèles ---------- */
   function drawAlerte(c, E) {
     const { W, H, f } = E;
-    drawLayer(c, { x: 0, y: 0, w: W, h: H });
+    photoLayer(c, E, 'p1', { x: 0, y: 0, w: W, h: H });
     const fam = famFor('alerte');
     const maxW = W - 2 * M;
     const bottom = H - f.bottom;
@@ -1305,7 +1731,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
 
   function drawBandeau(c, E) {
     const { W, H, f } = E;
-    drawLayer(c, { x: 0, y: 0, w: W, h: H });
+    photoLayer(c, E, 'p1', { x: 0, y: 0, w: W, h: H });
     const fam = famFor('bandeau');
     const edge = E.key === 'story' ? H - f.bottom : H;
     const stripH = 64;
@@ -1357,22 +1783,22 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     const meta = metaText();
     const handle = handleText();
     let left = meta;
-    let right = handle;
+    const right = handle;
     if (!meta && !handle) left = typo(state.name.split('\n').join(' ').trim()).toLocaleUpperCase('fr-FR');
     drawFooter(c, E, left, right, M, W - M, stripTop + Math.round(stripH / 2) + 8, { color: '#FFFFFF', size: 23, weight: 700 });
     return fit;
   }
 
-  function panelColors() {
+  function panelColors(tinted) {
     if (state.panel === 'light') return { bg: '#FFFFFF', fg: '#111216', muted: 'rgba(17,18,22,0.62)', rule: 'rgba(17,18,22,0.14)', kick: state.alert, hl: state.alert };
     if (state.panel === 'brand') return { bg: state.brand, fg: '#FFFFFF', muted: 'rgba(255,255,255,0.8)', rule: 'rgba(255,255,255,0.26)', kick: state.hl, hl: state.hl };
-    return { bg: '#111216', fg: '#FFFFFF', muted: 'rgba(255,255,255,0.68)', rule: 'rgba(255,255,255,0.16)', kick: state.hl, hl: state.hl };
+    return { bg: tinted ? mix(state.brand, '#000000', 0.8) : '#111216', fg: '#FFFFFF', muted: 'rgba(255,255,255,0.68)', rule: 'rgba(255,255,255,0.18)', kick: state.hl, hl: state.hl };
   }
   function drawUne(c, E) {
     const { W, H, f } = E;
     const photoH = Math.round(H * f.une);
-    drawLayer(c, { x: 0, y: 0, w: W, h: photoH });
-    const P = panelColors();
+    photoLayer(c, E, 'p1', { x: 0, y: 0, w: W, h: photoH });
+    const P = panelColors(false);
     c.fillStyle = P.bg;
     c.fillRect(0, photoH, W, H - photoH);
     const fam = famFor('une');
@@ -1394,8 +1820,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     const kick = kickerText();
     if (kick) { drawKicker(c, E, kick, M, y + 17, { color: P.kick, size: 24 }); y += 17 + 22; }
     const areaH = Math.max(60, ruleY - 36 - y);
-    const italic = false;
-    const fit = fitText(c, state.title, { fam, max: 72 * fam.k, min: 34 * fam.k, maxW: W - 2 * M, maxH: areaH, lh: fam.lh, italic });
+    const fit = fitText(c, state.title, { fam, max: 72 * fam.k, min: 34 * fam.k, maxW: W - 2 * M, maxH: areaH, lh: fam.lh });
     c.font = fit.font;
     drawRich(c, E, fit, M, y + capH(c, fit.px), { color: P.fg, hl: P.hl, fx: 'none' });
     return fit;
@@ -1403,7 +1828,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
 
   function drawCitation(c, E) {
     const { W, H, f } = E;
-    drawLayer(c, { x: 0, y: 0, w: W, h: H });
+    photoLayer(c, E, 'p1', { x: 0, y: 0, w: W, h: H });
     c.fillStyle = 'rgba(0,0,0,0.14)';
     c.fillRect(0, 0, W, H);
     const fam = famFor('citation');
@@ -1460,8 +1885,8 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
 
   function drawChiffre(c, E) {
     const { W, H, f } = E;
-    if (photo) {
-      drawLayer(c, { x: 0, y: 0, w: W, h: H }, 'duo');
+    if (slots.p1.img) {
+      photoLayer(c, E, 'p1', { x: 0, y: 0, w: W, h: H }, 'duo');
       c.fillStyle = 'rgba(0,0,0,0.42)';
       c.fillRect(0, 0, W, H);
     } else {
@@ -1517,7 +1942,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     drawRich(c, E, fit, M, y + tcap, { color: '#FFFFFF', hl: state.hl, fx: 'none' });
     const meta = metaText();
     const cr = state.credit.trim();
-    const right = handleText() || (photo && cr ? 'Photo' + NB + ': ' + typo(cr) : '');
+    const right = handleText() || (slots.p1.img && cr ? 'Photo' + NB + ': ' + typo(cr) : '');
     drawFooter(c, E, meta, right, M, W - M, H - f.bottom, { color: 'rgba(255,255,255,0.8)', size: 22 });
     return fit;
   }
@@ -1529,7 +1954,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
   }
   function drawSurligne(c, E) {
     const { W, H, f } = E;
-    drawLayer(c, { x: 0, y: 0, w: W, h: H });
+    photoLayer(c, E, 'p1', { x: 0, y: 0, w: W, h: H });
     const fam = famFor('surligne');
     const bottom = H - f.bottom;
     const meta = metaText();
@@ -1563,12 +1988,259 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     return fit;
   }
 
+  function photoBand(c, E, PH, P) {
+    const { W } = E;
+    const gap = 6;
+    const cw = Math.floor((W - gap) / 2);
+    c.fillStyle = P.bg;
+    c.fillRect(0, 0, W, PH);
+    drawPhotoCell(c, E, 'p1', { x: 0, y: 0, w: cw, h: PH }, state.cap1);
+    drawPhotoCell(c, E, 'p2', { x: W - cw, y: 0, w: cw, h: PH }, state.cap2);
+    drawBrand(c, E, M, E.f.top, { mode: 'outlined', color: state.brand, size: 46, maxW: cw - M - 24 });
+    creditTopRight(c, E);
+  }
+
+  function drawDuo(c, E) {
+    const { W, H, f } = E;
+    const P = panelColors(true);
+    c.fillStyle = P.bg;
+    c.fillRect(0, 0, W, H);
+    const PH = Math.round(E.key === 'story' ? f.top + H * 0.33 : H * 0.5);
+    photoBand(c, E, PH, P);
+    const fam = famFor('duo');
+    const footBase = H - f.bottom;
+    const meta = metaText();
+    const handle = handleText();
+    const hasMeta = !!(meta || handle);
+    const top = PH + 44;
+    const bottom = hasMeta ? footBase - 64 : footBase - 8;
+    const kick = kickerText();
+    const pg = kick ? pillGeom(c, kick, W - 2 * M, 26) : null;
+    const pillH = pg ? pg.h + 28 : 0;
+    const fit = fitText(c, state.title, { fam, max: 74 * fam.k, min: 36 * fam.k, maxW: W - 2 * M, maxH: Math.max(60, bottom - top - pillH), lh: fam.lh });
+    const th = textBlockH(c, fit);
+    let y = Math.round(top + Math.max(0, (bottom - top - pillH - th) / 2));
+    if (pg) { drawPill(c, pg, M, y); y += pillH; }
+    c.font = fit.font;
+    drawRich(c, E, fit, M, y + capH(c, fit.px), { color: P.fg, hl: P.hl, fx: 'none' });
+    drawFooter(c, E, meta, handle, M, W - M, footBase, { color: P.muted, size: 24 });
+    return fit;
+  }
+
+  const SCALES = [1, 0.94, 0.88, 0.82, 0.76, 0.7];
+  function dossierLeft(c, s, width, fam, availH) {
+    const g = Math.round(22 * s);
+    const B = [];
+    const kick = kickerText();
+    if (kick) {
+      const pg = pillGeom(c, kick, width, 26 * s);
+      B.push({ t: 'pill', pg, h: pg.h });
+    }
+    B.push({ t: 'head', h: 0 });
+    const q = quoteText();
+    if (q) {
+      const qmax = 50 * s * fam.k;
+      const fit = fitText(c, '*«*' + NB + typo(q) + NB + '*»*', { fam, max: qmax, min: Math.min(qmax, 30 * s * fam.k), maxW: width, maxH: qmax * 1.1 * 2, lh: 1.08, raw: true });
+      B.push({ t: 'quote', fit, h: textBlockH(c, fit) });
+    }
+    const author = typo(state.author.trim());
+    const role = typo(state.role.trim());
+    if (author || role) {
+      const ns = Math.round(30 * s);
+      const rs = Math.round(23 * s);
+      c.font = fontOf(SANS(800), ns);
+      const nc = capH(c, ns);
+      c.font = fontOf(SANS(500), rs);
+      const rc = capH(c, rs);
+      const pad = Math.round(16 * s);
+      const between = Math.round(12 * s);
+      let h = 2 + pad;
+      if (author) h += nc;
+      if (author && role) h += between;
+      if (role) h += rc + Math.round(rs * 0.24);
+      B.push({ t: 'expert', author, role, ns, rs, nc, rc, pad, between, h });
+    }
+    if (state.context.trim()) {
+      const cs = 25 * s;
+      const fit = fitText(c, state.context, { fam: FAM.grotesk, weight: 600, max: cs, min: Math.min(cs, 18 * s), maxW: width, maxH: cs * 1.3 * 3, lh: 1.3 });
+      const pad = Math.round(16 * s);
+      B.push({ t: 'ctx', fit, pad, h: 2 + pad + textBlockH(c, fit) });
+    }
+    const hasHead = !!state.title.replace(/\*/g, '').trim();
+    const fixed = B.reduce((sum, b) => sum + b.h, 0);
+    const gaps = g * Math.max(0, B.length - (hasHead ? 1 : 2));
+    const barW = Math.max(4, Math.round(8 * s));
+    const barGap = Math.round(20 * s);
+    const hmax = 62 * s * fam.k;
+    const head = fitText(c, state.title, { fam, max: hmax, min: Math.min(hmax, 34 * s * fam.k), maxW: width - barW - barGap, maxH: Math.max(30, availH - fixed - gaps), lh: fam.lh });
+    const headH = textBlockH(c, head);
+    const total = fixed + gaps + headH;
+    return { B, g, s, head, headH, barW, barGap, total, ok: !head.overflow && total <= availH + 1 };
+  }
+  function drawDossierLeft(c, E, L, x, y, width, P) {
+    let cy = y;
+    for (const b of L.B) {
+      if (b.t === 'head') {
+        if (!L.head.lines.length) continue;
+        c.font = L.head.font;
+        const cap = capH(c, L.head.px);
+        c.fillStyle = state.alert;
+        rrect(c, x, cy, L.barW, L.headH, L.barW / 2);
+        c.fill();
+        drawRich(c, E, L.head, x + L.barW + L.barGap, cy + cap, { color: P.fg, hl: P.hl, fx: 'none' });
+        cy += L.headH + L.g;
+        continue;
+      }
+      if (b.t === 'pill') {
+        drawPill(c, b.pg, x, cy);
+      } else if (b.t === 'quote') {
+        c.font = b.fit.font;
+        drawRich(c, E, b.fit, x, cy + capH(c, b.fit.px), { color: P.fg, hl: state.alert, fx: 'none' });
+      } else if (b.t === 'expert') {
+        c.fillStyle = P.rule;
+        c.fillRect(x, cy, width, 2);
+        let by = cy + 2 + b.pad;
+        if (b.author) {
+          by += b.nc;
+          drawSmall(c, E, b.author, x, by, { size: b.ns, weight: 800, color: P.fg, maxW: width });
+        }
+        if (b.role) {
+          by += (b.author ? b.between : 0) + b.rc;
+          drawSmall(c, E, b.role, x, by, { size: b.rs, weight: 500, color: P.muted, maxW: width });
+        }
+      } else if (b.t === 'ctx') {
+        c.fillStyle = P.rule;
+        c.fillRect(x, cy, width, 2);
+        c.font = b.fit.font;
+        drawRich(c, E, b.fit, x, cy + 2 + b.pad + capH(c, b.fit.px), { color: P.fg, hl: P.hl, fx: 'none' });
+      }
+      cy += b.h + L.g;
+    }
+  }
+  function dossierRight(c, s, width, availH, fixedDocH) {
+    const g = Math.round(20 * s);
+    const R = { s, g, used: 0 };
+    const dt = typo(state.docTitle.trim()).toLocaleUpperCase('fr-FR');
+    if (dt) {
+      let px = Math.round(26 * s);
+      c.font = fontOf(SANS(800), px);
+      while (px > 14 && spacedWidth(c, dt, px * 0.05) > width) {
+        px -= 1;
+        c.font = fontOf(SANS(800), px);
+      }
+      R.dt = { text: fitSpaced(c, dt, width, px * 0.05), px, cap: capH(c, px) };
+      R.used += R.dt.cap + g;
+    }
+    const pts = pointsList();
+    if (pts.length) {
+      const pmax = 26 * s;
+      let px = pmax;
+      for (const p of pts) {
+        const one = fitText(c, p, { fam: FAM.grotesk, weight: 700, max: pmax, min: Math.min(pmax, 16), maxW: width, maxH: pmax * 1.25, lh: 1.2 });
+        px = Math.min(px, one.px);
+      }
+      const pad = Math.round(14 * s);
+      const rows = pts.map((p) => fitText(c, p, { fam: FAM.grotesk, weight: 700, max: px, min: px, maxW: width, maxH: px * 1.25, lh: 1.2 }));
+      const h = rows.reduce((sum, r) => sum + textBlockH(c, r) + 2 * pad, 0) + 2 * (rows.length - 1);
+      R.points = { rows, pad, h };
+      R.used += h + g;
+    }
+    R.docH = fixedDocH != null ? fixedDocH : Math.round(availH - R.used);
+    R.ok = fixedDocH != null || R.docH >= Math.max(150, availH * 0.42);
+    return R;
+  }
+  function drawDossierRight(c, E, R, x, y, width, P) {
+    let cy = y;
+    if (R.dt) {
+      c.save();
+      c.font = fontOf(SANS(800), R.dt.px);
+      c.fillStyle = P.fg;
+      c.textAlign = 'left';
+      drawSpaced(c, R.dt.text, x, cy + R.dt.cap, R.dt.px * 0.05);
+      c.restore();
+      cy += R.dt.cap + R.g;
+    }
+    if (R.docH > 40) {
+      drawDocPanels(c, E, { x, y: Math.round(cy), w: width, h: Math.round(R.docH) }, P);
+      cy += R.docH + R.g;
+    }
+    if (R.points) {
+      R.points.rows.forEach((fit, i) => {
+        if (i) {
+          c.fillStyle = P.rule;
+          c.fillRect(x, cy, width, 2);
+          cy += 2;
+        }
+        c.font = fit.font;
+        drawRich(c, E, fit, x, cy + R.points.pad + capH(c, fit.px), { color: P.fg, hl: P.hl, fx: 'none' });
+        cy += textBlockH(c, fit) + 2 * R.points.pad;
+      });
+    }
+  }
+  function drawDossier(c, E) {
+    const { W, H, f } = E;
+    const story = E.key === 'story';
+    const P = panelColors(true);
+    c.fillStyle = P.bg;
+    c.fillRect(0, 0, W, H);
+    const PH = Math.round(story ? f.top + H * 0.2 : H * (E.key === 'square' ? 0.39 : 0.38));
+    photoBand(c, E, PH, P);
+    const fam = famFor('dossier');
+    const m = 48;
+    const footBase = H - f.bottom;
+    const ruleY = footBase - 42;
+    const top = PH + 34;
+    const avail = ruleY - 26 - top;
+    let L = null;
+    let R = null;
+    if (!story) {
+      const colGap = 40;
+      const LW = Math.round((W - 2 * m - colGap) * 0.46);
+      const RW = W - 2 * m - colGap - LW;
+      for (const s of SCALES) {
+        L = dossierLeft(c, s, LW, fam, avail);
+        if (L.ok) break;
+      }
+      for (const s of SCALES) {
+        R = dossierRight(c, s, RW, avail, null);
+        if (R.ok) break;
+      }
+      drawDossierLeft(c, E, L, m, top, LW, P);
+      drawDossierRight(c, E, R, m + LW + colGap, top, RW, P);
+    } else {
+      const width = W - 2 * m;
+      let sep = 0;
+      for (const s of SCALES) {
+        sep = 2 * Math.round(22 * s) + 2;
+        R = dossierRight(c, s, width, 0, Math.round(250 * s));
+        L = dossierLeft(c, s, width, fam, avail - sep - R.used - R.docH);
+        if (L.ok) break;
+      }
+      const leftover = avail - (L.total + sep + R.used + R.docH);
+      if (leftover > 0) R.docH += Math.min(leftover, 300);
+      drawDossierLeft(c, E, L, m, top, width, P);
+      const ry = Math.round(top + L.total + (sep - 2) / 2);
+      c.fillStyle = P.rule;
+      c.fillRect(m, ry, width, 2);
+      drawDossierRight(c, E, R, m, ry + 2 + (sep - 2) / 2, width, P);
+    }
+    c.fillStyle = P.rule;
+    c.fillRect(m, ruleY, W - 2 * m, 2);
+    const src = state.source.trim();
+    const left = [src ? 'Source' + NB + ': ' + typo(src) : '', handleText()].filter(Boolean).join('  ·  ');
+    const right = state.showDate ? DATE_STR.toLocaleUpperCase('fr-FR') : '';
+    drawFooter(c, E, left, right, m, W - m, footBase, { color: P.muted, rightColor: P.fg, size: 22, weight: 700 });
+    const h = L.head;
+    return { px: h.px, lines: h.lines, lh: h.lh, font: h.font, overflow: h.overflow || !L.ok || !R.ok };
+  }
+
   /* ---------- rendu ---------- */
   const canvas = $('out');
   const ctx = canvas.getContext('2d');
   const screen = $('screen');
+  let regions = [];
 
-  function renderTo(c, tpl, S) {
+  function renderTo(c, tpl, S, regionsOut) {
     const f = FORMATS[state.format];
     c.setTransform(S, 0, 0, S, 0, 0);
     c.globalAlpha = 1;
@@ -1580,7 +2252,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     c.imageSmoothingEnabled = true;
     c.imageSmoothingQuality = 'high';
     c.clearRect(0, 0, f.w, f.h);
-    return TPL[tpl].draw(c, { W: f.w, H: f.h, f, key: state.format, S });
+    return TPL[tpl].draw(c, { W: f.w, H: f.h, f, key: state.format, S, regions: regionsOut || null });
   }
   let version = 0;
   function render() {
@@ -1588,16 +2260,20 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     if (canvas.width !== f.w) canvas.width = f.w;
     if (canvas.height !== f.h) canvas.height = f.h;
     version++;
-    updateReadout(f, renderTo(ctx, state.tpl, 1));
+    const reg = [];
+    const fit = renderTo(ctx, state.tpl, 1, reg);
+    regions = reg;
+    updateReadout(f, fit);
+    if (!mini.hidden) drawMini();
     schedulePrep();
   }
   function updateReadout(f, fit) {
     $('dims').textContent = f.w + ' × ' + f.h + ' px · ' + f.ratio;
     const el = $('fit-info');
     const n = fit ? fit.lines.length : 0;
-    el.classList.toggle('warn', !!(fit && n && fit.overflow));
-    if (!n) el.textContent = 'Pas de texte';
-    else if (fit.overflow) el.textContent = 'Texte trop long' + NB + ': raccourcis-le';
+    el.classList.toggle('warn', !!(fit && fit.overflow));
+    if (fit && fit.overflow) el.textContent = 'Texte trop long' + NB + ': raccourcis-le';
+    else if (!n) el.textContent = 'Pas de titre';
     else el.textContent = n + ' ligne' + (n > 1 ? 's' : '') + ' · ' + Math.round(fit.px) + ' px';
   }
   let raf = 0;
@@ -1615,7 +2291,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
       try {
         if (cv.width !== tw) cv.width = tw;
         if (cv.height !== th) cv.height = th;
-        renderTo(cv.getContext('2d'), cv.dataset.tpl, tw / f.w);
+        renderTo(cv.getContext('2d'), cv.dataset.tpl, tw / f.w, null);
       } catch (e) { /* une vignette ratée ne bloque pas les autres */ }
     }
   }
@@ -1652,13 +2328,20 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     if (badge && ['alerte', 'bandeau', 'une', 'surligne'].indexOf(state.tpl) !== -1) head.push('🔴 ' + badge.toLocaleUpperCase('fr-FR'));
     if (kick) head.push(clean(kick).toLocaleUpperCase('fr-FR'));
     if (head.length) parts.push(head.join(' | '));
+    const who = [state.author.trim(), state.role.trim()].filter(Boolean).map(clean).join(', ');
     if (state.tpl === 'citation') {
       if (state.title.trim()) parts.push('«' + NB + clean(state.title) + NB + '»');
-      const who = [state.author.trim(), state.role.trim()].filter(Boolean).map(clean).join(', ');
       if (who) parts.push(who);
     } else if (state.tpl === 'chiffre') {
       const line = [clean(state.figure), clean(state.title)].filter(Boolean).join(NB + ': ');
       if (line) parts.push(line);
+    } else if (state.tpl === 'dossier') {
+      if (state.title.trim()) parts.push(clean(state.title));
+      if (state.context.trim()) parts.push(clean(state.context));
+      const q = quoteText();
+      if (q) parts.push('«' + NB + clean(q) + NB + '»' + (who ? ', ' + who : ''));
+      const pts = pointsList().map((p) => '• ' + clean(p));
+      if (pts.length) parts.push(pts.join('\n'));
     } else if (state.title.trim()) {
       parts.push(clean(state.title));
     }
@@ -1683,9 +2366,12 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
   });
 
   /* ---------- contrôles ---------- */
-  const TEXT_FIELDS = { badge: 'badge', kicker: 'kicker', title: 'title', figure: 'figure', author: 'author', role: 'role', source: 'source', credit: 'credit', name: 'name', handle: 'handle' };
+  const TEXT_FIELDS = {
+    badge: 'badge', kicker: 'kicker', title: 'title', figure: 'figure', author: 'author', role: 'role', source: 'source', credit: 'credit',
+    name: 'name', handle: 'handle', cap1: 'cap1', cap2: 'cap2', quote: 'quote', context: 'context', 'doc-title': 'docTitle', points: 'points'
+  };
   const CHECKS = { 'show-date': 'showDate', french: 'frenchTypo', 'guides-on': 'guides' };
-  const RADIOS = { tpl: 'tpl', format: 'format', font: 'font', 'text-fx': 'textFx', 'badge-style': 'badgeStyle', panel: 'panel', boxes: 'boxes', filter: 'filter' };
+  const RADIOS = { tpl: 'tpl', format: 'format', font: 'font', 'text-fx': 'textFx', 'badge-style': 'badgeStyle', panel: 'panel', boxes: 'boxes', filter: 'filter', 'doc-mode': 'docMode', 'mark-kind': 'markKind' };
   const COLORS = { 'c-brand': 'brand', 'c-alert': 'alert', 'c-hl': 'hl' };
 
   function updateCount() {
@@ -1701,10 +2387,24 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     $('shade').value = state.shade;
     $('shade-out').textContent = state.shade + NNB + '%';
   }
+
+  let cropTarget = 'p1';
+  const CROP_HINTS = {
+    p1: 'Importe une photo dans Contenu pour la recadrer.',
+    p2: 'Importe la photo 2 dans Contenu pour la recadrer.',
+    doc: ''
+  };
+  const availableTargets = () => (state.tpl === 'dossier' ? ['p1', 'p2', 'doc'] : state.tpl === 'duo' ? ['p1', 'p2'] : ['p1']);
   function syncCrop() {
-    const z = Math.round(crop.zoom * 100);
-    const x = Math.round(crop.fx * 100);
-    const y = Math.round(crop.fy * 100);
+    const s = slots[cropTarget];
+    const can = !!s.img || cropTarget === 'doc';
+    $('crop').hidden = !can;
+    $('crop-hint').hidden = can;
+    $('crop-hint').textContent = CROP_HINTS[cropTarget];
+    $('zoom-name').textContent = cropTarget === 'doc' ? 'Agrandir' : 'Zoom';
+    const z = Math.round(s.crop.zoom * 100);
+    const x = Math.round(s.crop.fx * 100);
+    const y = Math.round(s.crop.fy * 100);
     $('zoom').value = z;
     $('pos-x').value = x;
     $('pos-y').value = y;
@@ -1712,6 +2412,15 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     $('pos-x-out').textContent = x + NNB + '%';
     $('pos-y-out').textContent = y + NNB + '%';
   }
+  function setTarget(key) {
+    cropTarget = key;
+    for (const r of document.querySelectorAll('input[name="crop-target"]')) r.checked = r.value === key;
+    syncCrop();
+  }
+  for (const r of document.querySelectorAll('input[name="crop-target"]')) {
+    r.addEventListener('change', () => { if (r.checked) setTarget(r.value); });
+  }
+
   function syncInputs() {
     for (const id in TEXT_FIELDS) $(id).value = state[TEXT_FIELDS[id]];
     for (const id in CHECKS) $(id).checked = !!state[CHECKS[id]];
@@ -1729,7 +2438,15 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
       el.hidden = el.dataset.tpl.split(' ').indexOf(state.tpl) === -1;
     }
     $('title-label').textContent = state.tpl === 'citation' ? 'Citation' : state.tpl === 'chiffre' ? 'Explication' : 'Titre';
+    $('photo-label').textContent = state.tpl === 'duo' || state.tpl === 'dossier' ? 'Photo 1' : 'Photo';
     $('tpl-desc').textContent = TPL[state.tpl].desc;
+    const targets = availableTargets();
+    $('target-field').hidden = targets.length < 2;
+    $('tg-p2-wrap').hidden = targets.indexOf('p2') === -1;
+    $('tg-doc-wrap').hidden = targets.indexOf('doc') === -1;
+    if (targets.indexOf(cropTarget) === -1) setTarget('p1');
+    else syncCrop();
+    if (state.tpl !== 'dossier' && marking) stopMarking();
   }
   function applyFormat() {
     const f = FORMATS[state.format];
@@ -1800,9 +2517,9 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     });
   }
   $('shade').addEventListener('input', () => { state.shade = Number($('shade').value); syncShade(); changed(); });
-  $('zoom').addEventListener('input', () => { crop.zoom = Number($('zoom').value) / 100; syncCrop(); schedule(); scheduleSide(); });
-  $('pos-x').addEventListener('input', () => { crop.fx = Number($('pos-x').value) / 100; syncCrop(); schedule(); scheduleSide(); });
-  $('pos-y').addEventListener('input', () => { crop.fy = Number($('pos-y').value) / 100; syncCrop(); schedule(); scheduleSide(); });
+  $('zoom').addEventListener('input', () => { slots[cropTarget].crop.zoom = Number($('zoom').value) / 100; syncCrop(); schedule(); scheduleSide(); });
+  $('pos-x').addEventListener('input', () => { slots[cropTarget].crop.fx = Number($('pos-x').value) / 100; syncCrop(); schedule(); scheduleSide(); });
+  $('pos-y').addEventListener('input', () => { slots[cropTarget].crop.fy = Number($('pos-y').value) / 100; syncCrop(); schedule(); scheduleSide(); });
   $('today').textContent = DATE_STR;
 
   /* ---------- lecture des fichiers ---------- */
@@ -1823,36 +2540,47 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     });
   }
 
-  function setPhoto(img, name) {
-    photo = img;
-    photoId++;
-    crop.zoom = 1;
-    crop.fx = 0.5;
-    crop.fy = 0.5;
-    syncCrop();
-    $('photo-name').textContent = img ? name : 'Photo d’exemple';
-    $('photo-clear').hidden = !img;
-    $('crop').hidden = !img;
-    $('crop-hint').hidden = !!img;
-    screen.classList.toggle('has-photo', !!img);
+  const SLOT_UI = {
+    p1: { input: 'photo-input', name: 'photo-name', clear: 'photo-clear', empty: 'Photo d’exemple' },
+    p2: { input: 'photo2-input', name: 'photo2-name', clear: 'photo2-clear', empty: 'Photo d’exemple' },
+    doc: { input: 'doc-input', name: 'doc-name', clear: 'doc-clear', empty: 'Document d’exemple' }
+  };
+  function setSlot(key, img, name) {
+    const s = slots[key];
+    s.img = img;
+    s.id = ++imgSeq;
+    s.crop = key === 'doc' ? Object.assign({}, img ? DOC_CROP : DOC_SAMPLE_CROP) : { zoom: 1, fx: 0.5, fy: 0.5 };
+    if (key === 'doc') {
+      s.marks = img ? [] : null;
+      tempMark = null;
+      updateMarkCount();
+    }
+    const ui = SLOT_UI[key];
+    $(ui.name).textContent = img ? name : ui.empty;
+    $(ui.clear).hidden = !img;
+    if (img && availableTargets().indexOf(key) !== -1) setTarget(key);
+    else if (key === cropTarget) syncCrop();
     schedule();
     scheduleSide();
   }
-  async function loadPhoto(file) {
+  async function loadInto(key, file) {
     if (!file || !/^image\//.test(file.type)) { say('Ce fichier n’est pas une image.'); return; }
     try {
       const img = await loadImage(await readAsDataURL(file));
-      setPhoto(img, file.name || 'Image collée');
+      setSlot(key, img, file.name || 'Image collée');
     } catch (e) {
       say('Impossible de lire cette image. Essaie un JPG ou un PNG.');
     }
   }
-  $('photo-input').addEventListener('change', (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (f) loadPhoto(f);
-    e.target.value = '';
-  });
-  $('photo-clear').addEventListener('click', () => setPhoto(null, ''));
+  for (const key of Object.keys(SLOT_UI)) {
+    const ui = SLOT_UI[key];
+    $(ui.input).addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) loadInto(key, f);
+      e.target.value = '';
+    });
+    $(ui.clear).addEventListener('click', () => setSlot(key, null, ''));
+  }
 
   function setLogo(dataUrl) {
     state.logo = dataUrl || '';
@@ -1892,9 +2620,144 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
   });
   $('logo-clear').addEventListener('click', () => { setLogo(''); persist(); });
 
+  /* ---------- aperçu : glisser, recadrer, surligner ---------- */
+  let drag = null;
+  let marking = false;
+  function canvasPoint(e) {
+    const rect = canvas.getBoundingClientRect();
+    const k = canvas.width / rect.width;
+    return { x: (e.clientX - rect.left) * k, y: (e.clientY - rect.top) * k };
+  }
+  function regionAt(p, test) {
+    for (let i = regions.length - 1; i >= 0; i--) {
+      const r = regions[i];
+      if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h && (!test || test(r))) return r;
+    }
+    return null;
+  }
+  const canPan = (r) => !!r.g && r.kind !== 'docpage' && (!!slots[r.key].img || r.key === 'doc');
+  function toNorm(r, p) {
+    const x = clamp(p.x, r.x, r.x + r.w);
+    const y = clamp(p.y, r.y, r.y + r.h);
+    return { x: clamp((x - r.x - r.g.ox) / r.g.dw, 0, 1), y: clamp((y - r.y - r.g.oy) / r.g.dh, 0, 1) };
+  }
+  function updateMarkCount() {
+    const n = docMarks().length;
+    $('mark-count').textContent = n ? n + ' marque' + (n > 1 ? 's' : '') : '';
+  }
+  function startMarking() {
+    if (state.tpl !== 'dossier') return;
+    marking = true;
+    screen.classList.add('marking');
+    canvas.style.cursor = '';
+    $('mark-bar').hidden = false;
+    $('mark-start').setAttribute('aria-pressed', 'true');
+    $('mark-start-label').textContent = 'Terminer le surlignage';
+    const r = screen.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > window.innerHeight) screen.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+    updateMini();
+  }
+  function stopMarking() {
+    marking = false;
+    tempMark = null;
+    if (drag && drag.mode === 'mark') drag = null;
+    screen.classList.remove('marking');
+    $('mark-bar').hidden = true;
+    $('mark-start').setAttribute('aria-pressed', 'false');
+    $('mark-start-label').textContent = 'Surligner un passage';
+    schedule();
+    updateMini();
+  }
+  $('mark-start').addEventListener('click', () => (marking ? stopMarking() : startMarking()));
+  $('mark-done').addEventListener('click', stopMarking);
+  $('mark-undo').addEventListener('click', () => {
+    ownMarks().pop();
+    updateMarkCount();
+    schedule();
+    scheduleSide();
+  });
+  $('mark-clear').addEventListener('click', () => {
+    slots.doc.marks = [];
+    updateMarkCount();
+    schedule();
+    scheduleSide();
+  });
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const p = canvasPoint(e);
+    if (marking) {
+      const r = regionAt(p, (x) => x.key === 'doc' && !!x.g);
+      if (!r) { say('Trace le rectangle sur le document, dans l’aperçu.'); return; }
+      const n = toNorm(r, p);
+      tempMark = { x0: n.x, y0: n.y, x1: n.x, y1: n.y, kind: state.markKind };
+      drag = { id: e.pointerId, mode: 'mark', r };
+    } else {
+      if (e.pointerType === 'touch') return;
+      const r = regionAt(p, canPan);
+      if (!r) return;
+      drag = { id: e.pointerId, mode: 'pan', r, x: e.clientX, y: e.clientY };
+      if (r.key !== cropTarget && availableTargets().indexOf(r.key) !== -1) setTarget(r.key);
+      canvas.style.cursor = 'grabbing';
+    }
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* sans capture */ }
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag) {
+      if (e.pointerType !== 'mouse' || marking) return;
+      canvas.style.cursor = regionAt(canvasPoint(e), canPan) ? 'grab' : '';
+      return;
+    }
+    if (e.pointerId !== drag.id) return;
+    if (drag.mode === 'mark') {
+      const n = toNorm(drag.r, canvasPoint(e));
+      tempMark.x1 = n.x;
+      tempMark.y1 = n.y;
+      schedule();
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const k = canvas.width / rect.width;
+    const dx = (e.clientX - drag.x) * k;
+    const dy = (e.clientY - drag.y) * k;
+    drag.x = e.clientX;
+    drag.y = e.clientY;
+    const r = drag.r;
+    const s = slots[r.key];
+    const src = sourceOf(r.key);
+    if (!src) return;
+    const g = coverGeom(src.w, src.h, r.w, r.h, s.crop);
+    const freeX = g.dw - r.w;
+    const freeY = g.dh - r.h;
+    if (freeX > 0.5) s.crop.fx = clamp(s.crop.fx - dx / freeX, 0, 1);
+    if (freeY > 0.5) s.crop.fy = clamp(s.crop.fy - dy / freeY, 0, 1);
+    syncCrop();
+    schedule();
+  });
+  function endDrag(e) {
+    if (!drag || (e && e.pointerId !== drag.id)) return;
+    if (drag.mode === 'mark' && tempMark) {
+      const m = normMark(tempMark);
+      const g = drag.r.g;
+      tempMark = null;
+      if ((m.x1 - m.x0) * g.dw > 10 && (m.y1 - m.y0) * g.dh > 6) {
+        ownMarks().push(m);
+        updateMarkCount();
+      }
+    }
+    drag = null;
+    if (!marking) canvas.style.cursor = '';
+    schedule();
+    scheduleSide();
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
   /* ---------- glisser-déposer, coller ---------- */
   let dragDepth = 0;
   const hasFiles = (e) => !!e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') !== -1;
+  const pasteTarget = () => (availableTargets().indexOf(cropTarget) !== -1 ? cropTarget : 'p1');
   document.addEventListener('dragenter', (e) => {
     if (!hasFiles(e)) return;
     dragDepth++;
@@ -1912,51 +2775,22 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     dragDepth = 0;
     screen.classList.remove('drop');
     const f = Array.prototype.find.call(e.dataTransfer.files, (x) => /^image\//.test(x.type));
-    if (f) loadPhoto(f);
-    else say('Dépose une image, par exemple un JPG ou un PNG.');
+    if (!f) { say('Dépose une image, par exemple un JPG ou un PNG.'); return; }
+    let key = pasteTarget();
+    const rect = canvas.getBoundingClientRect();
+    if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+      const r = regionAt(canvasPoint(e));
+      if (r) key = r.key;
+    }
+    loadInto(key, f);
   });
   document.addEventListener('paste', (e) => {
     const files = e.clipboardData ? Array.prototype.slice.call(e.clipboardData.files || []) : [];
     const f = files.find((x) => /^image\//.test(x.type));
-    if (f) { e.preventDefault(); loadPhoto(f); }
+    if (f) { e.preventDefault(); loadInto(pasteTarget(), f); }
   });
 
-  /* ---------- recadrage à la souris ---------- */
-  let drag = null;
-  canvas.addEventListener('pointerdown', (e) => {
-    if (!photo || e.pointerType === 'touch' || e.button !== 0) return;
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
-    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* sans capture */ }
-    screen.classList.add('dragging');
-    e.preventDefault();
-  });
-  canvas.addEventListener('pointermove', (e) => {
-    if (!drag || e.pointerId !== drag.id) return;
-    const rect = canvas.getBoundingClientRect();
-    const k = canvas.width / rect.width;
-    const dx = (e.clientX - drag.x) * k;
-    const dy = (e.clientY - drag.y) * k;
-    drag.x = e.clientX;
-    drag.y = e.clientY;
-    const pr = photoRect();
-    const s = Math.max(pr.w / photo.naturalWidth, pr.h / photo.naturalHeight) * crop.zoom;
-    const freeX = photo.naturalWidth * s - pr.w;
-    const freeY = photo.naturalHeight * s - pr.h;
-    if (freeX > 0.5) crop.fx = clamp(crop.fx - dx / freeX, 0, 1);
-    if (freeY > 0.5) crop.fy = clamp(crop.fy - dy / freeY, 0, 1);
-    syncCrop();
-    schedule();
-  });
-  const endDrag = () => {
-    if (!drag) return;
-    drag = null;
-    screen.classList.remove('dragging');
-    scheduleSide();
-  };
-  canvas.addEventListener('pointerup', endDrag);
-  canvas.addEventListener('pointercancel', endDrag);
-
-  /* ---------- identité : code à partager ---------- */
+  /* ---------- identité : code et lien à partager ---------- */
   const b64e = (s) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   function b64d(s) {
     let t = s.replace(/-/g, '+').replace(/_/g, '/');
@@ -2023,6 +2857,11 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     }
   } catch (e) { downloads = null; noDirectSave(); }
 
+  function fileName() {
+    const d = new Date();
+    const p = (v) => String(v).padStart(2, '0');
+    return state.tpl + '-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.jpg';
+  }
   function directDownload(blob) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -2078,12 +2917,6 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     }
   });
 
-  function fileName() {
-    const d = new Date();
-    const p = (v) => String(v).padStart(2, '0');
-    return state.tpl + '-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.jpg';
-  }
-
   const sheet = $('sheet');
   function openSheet(blob) {
     readAsDataURL(blob).then((url) => {
@@ -2091,11 +2924,13 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
       sheet.hidden = false;
       $('sheet-close').focus();
       say('');
+      updateMini();
     }, () => say('L’image n’a pas pu être affichée. Réessaie.'));
   }
   function closeSheet() {
     sheet.hidden = true;
     $('download').focus();
+    updateMini();
   }
   $('sheet-close').addEventListener('click', closeSheet);
   sheet.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); });
@@ -2106,6 +2941,7 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
     busy = true;
     say('Préparation de l’image…');
     try {
+      if (marking) stopMarking();
       render();
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
       if (!blob) { say('L’image n’a pas pu être créée. Réessaie.'); return; }
@@ -2136,12 +2972,51 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform || '');
   $('kbd').textContent = isMac ? '⌘ S' : 'Ctrl + S';
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !sheet.hidden) { closeSheet(); return; }
+    if (e.key === 'Escape') {
+      if (!sheet.hidden) { closeSheet(); return; }
+      if (marking) { stopMarking(); return; }
+    }
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 's') {
       e.preventDefault();
       exportImage();
     }
   });
+
+  /* ---------- aperçu flottant sur téléphone ---------- */
+  const mini = $('mini');
+  const miniCv = $('mini-canvas');
+  let monitorVisible = true;
+  let typing = false;
+  const narrowMq = (() => { try { return window.matchMedia('(max-width: 899px)'); } catch (e) { return { matches: false }; } })();
+  function drawMini() {
+    const f = FORMATS[state.format];
+    const w = 184;
+    const h = Math.round((w * f.h) / f.w);
+    if (miniCv.width !== w) miniCv.width = w;
+    if (miniCv.height !== h) miniCv.height = h;
+    const t = miniCv.getContext('2d');
+    t.imageSmoothingEnabled = true;
+    t.imageSmoothingQuality = 'high';
+    t.drawImage(canvas, 0, 0, w, h);
+  }
+  function updateMini() {
+    const show = !!narrowMq.matches && !monitorVisible && !typing && !marking && sheet.hidden;
+    mini.hidden = !show;
+    if (show) drawMini();
+  }
+  mini.addEventListener('click', () => { screen.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' }); });
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver((entries) => {
+      monitorVisible = entries[entries.length - 1].isIntersecting;
+      updateMini();
+    }, { threshold: 0.2 }).observe(screen);
+  }
+  const isTypingField = (el) => !!el && typeof el.matches === 'function' && el.matches('input[type="text"], textarea:not([readonly])');
+  document.addEventListener('focusin', (e) => { if (isTypingField(e.target)) { typing = true; updateMini(); } });
+  document.addEventListener('focusout', () => {
+    setTimeout(() => { typing = isTypingField(document.activeElement); updateMini(); }, 60);
+  });
+  if (narrowMq.addEventListener) narrowMq.addEventListener('change', updateMini);
 
   /* ---------- polices ---------- */
   function fontsChanged() {
@@ -2166,9 +3041,10 @@ details.kit summary:focus-visible { outline: 2px solid var(--accent); outline-of
 
   /* ---------- démarrage ---------- */
   syncInputs();
-  syncCrop();
+  setTarget('p1');
   applyTpl();
   applyFormat();
+  updateMarkCount();
   if (state.logo) setLogo(state.logo);
   if (location.hash.indexOf('#kit=') === 0) {
     const ok = applyKitCode(decodeURIComponent(location.hash.slice(5)));
