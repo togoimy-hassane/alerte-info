@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Colle un texte : l’assistant le résume, choisit le modèle et remplit un visuel d’actualité au format Facebook, Instagram ou statut WhatsApp. Export JPG 1080 px.">
+<meta name="description" content="Colle un texte : l’assistant le résume, choisit le modèle et remplit un visuel d’actualité ou tout un carrousel, au format Facebook, Instagram ou statut WhatsApp. Export JPG 1080 px.">
 <meta name="theme-color" content="#C9282E">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -554,6 +554,23 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
 .ai-todo .what { display: flex; flex-direction: column; gap: 2px; flex: 1 1 180px; min-width: 0; font: 650 14px/1.35 var(--font-body); }
 .ai-todo .what small { font: 400 13px/1.4 var(--font-body); color: var(--muted); }
 .ai-todo .btn { min-height: 40px; }
+.ai-car { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; background: var(--paper); border-radius: 4px; font: 600 14px/1.4 var(--font-body); }
+.ai-car .btn { min-height: 40px; }
+
+/* Carrousel : bande de vignettes sous l'aperçu, glisser au doigt sur téléphone. */
+.pager { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pager .btn { flex: none; min-width: 44px; padding: 0 10px; }
+.pager .btn:disabled { opacity: 0.35; cursor: default; }
+.strip { position: relative; display: flex; flex: 1 1 auto; gap: 8px; min-width: 0; overflow-x: auto; padding: 5px 4px; scrollbar-width: thin; }
+.linkish:disabled { color: var(--muted); text-decoration: none; cursor: default; }
+.strip button { position: relative; flex: none; padding: 0; border: 0; border-radius: 3px; background: var(--well); line-height: 0; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
+.strip button[aria-current="true"] { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent); }
+.strip button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.strip canvas { display: block; width: 48px; height: auto; border-radius: 3px; }
+.strip span { position: absolute; left: 3px; bottom: 3px; padding: 2px 4px; border-radius: 2px; background: rgba(0, 0, 0, 0.6); color: #FFFFFF; font: 600 10px/1 var(--font-mono); }
+.screen.swipe canvas { touch-action: pan-y; }
+.slide-moves { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.sheet-imgs { display: flex; flex-direction: column; gap: 10px; }
 </style>
 </head>
 <body>
@@ -561,7 +578,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
 <div class="wrap">
   <header class="top">
     <h1 class="mark">Générateur <span class="tag">Alerte Info.</span></h1>
-    <p>Colle ton texte&nbsp;: l’assistant le résume, choisit parmi huit modèles et remplit le visuel. Export en 1080&nbsp;px prêt à publier.</p>
+    <p>Colle ton texte&nbsp;: l’assistant le résume, choisit parmi huit modèles et remplit le visuel, ou tout un carrousel. Export en 1080&nbsp;px prêt à publier.</p>
   </header>
 
   <main class="desk">
@@ -645,6 +662,15 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
           </div>
         </div>
       </div>
+      <div class="pager" id="pager" hidden>
+        <button type="button" class="btn" id="pg-prev" aria-label="Page précédente">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4l-6 6 6 6"/></svg>
+        </button>
+        <div class="strip" id="strip" role="group" aria-label="Pages du carrousel"></div>
+        <button type="button" class="btn" id="pg-next" aria-label="Page suivante">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 4l6 6-6 6"/></svg>
+        </button>
+      </div>
       <div class="mark-bar" id="mark-bar" hidden>
         <p>Trace un rectangle sur le document, dans l’aperçu.</p>
         <div class="seg" role="radiogroup" aria-label="Type de marque">
@@ -691,6 +717,10 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         <div class="field" id="ai-titles-field">
           <span class="label">Titres proposés <small>touche pour choisir</small></span>
           <div class="ai-titles" id="ai-titles"></div>
+        </div>
+        <div class="field" id="ai-car-field" hidden>
+          <span class="label">Carrousel</span>
+          <div class="ai-car"><span id="ai-car-text"></span><button type="button" class="btn" id="ai-car-go">Voir en carrousel</button></div>
         </div>
         <div class="field" id="ai-checks-field">
           <span class="label">À vérifier avant de publier</span>
@@ -871,6 +901,40 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         <label class="toggle" for="show-date"><input type="checkbox" id="show-date">Afficher la date du jour <small id="today"></small></label>
       </section>
 
+      <section class="group" aria-labelledby="g-car">
+        <h2 class="eyebrow" id="g-car">Carrousel</h2>
+        <label class="toggle" for="car-on"><input type="checkbox" id="car-on">Publier en carrousel <small>plusieurs images</small></label>
+        <p class="hint" id="car-off-hint">Pour un sujet long&nbsp;: la page 1 accroche, les suivantes racontent la suite. Sur Facebook et Instagram, le lecteur fait glisser les images.</p>
+        <div class="field" id="car-body" hidden>
+          <p class="hint" id="car-cover-note">Page 1&nbsp;: c’est le visuel principal, il se règle dans Contenu. Choisis une autre page sous l’aperçu pour la modifier.</p>
+          <p class="hint" id="car-end-note" hidden>Dernière page&nbsp;: elle invite à s’abonner, avec ton nom et ta signature.</p>
+          <div class="field" id="car-edit" hidden>
+            <span class="label" id="car-page-label">Page 2</span>
+            <div class="seg" role="radiogroup" aria-labelledby="car-page-label">
+              <label><input type="radio" name="slide-kind" id="sk-point" value="point"><span>Texte</span></label>
+              <label><input type="radio" name="slide-kind" id="sk-quote" value="quote"><span>Citation</span></label>
+              <label><input type="radio" name="slide-kind" id="sk-figure" value="figure"><span>Chiffre</span></label>
+            </div>
+            <label class="label" for="slide-head" id="slide-head-label">Titre de la page</label>
+            <input type="text" id="slide-head" maxlength="240" autocomplete="off">
+            <label class="label" for="slide-body" id="slide-body-label">Texte</label>
+            <textarea id="slide-body" rows="4" maxlength="400"></textarea>
+            <p class="hint" id="slide-hint">Entoure des mots d’astérisques pour les colorer.</p>
+            <div class="slide-moves">
+              <button type="button" class="linkish" id="slide-up">Avancer la page</button>
+              <button type="button" class="linkish" id="slide-down">Reculer la page</button>
+              <button type="button" class="linkish" id="slide-del">Supprimer la page</button>
+            </div>
+          </div>
+          <div class="file-row"><button type="button" class="btn" id="slide-add">Ajouter une page</button></div>
+          <label class="toggle" for="end-on"><input type="checkbox" id="end-on">Page de fin <small>abonnement</small></label>
+          <div class="field" id="end-field">
+            <label class="label" for="end-text">Texte de la page de fin</label>
+            <input type="text" id="end-text" maxlength="120" autocomplete="off">
+          </div>
+        </div>
+      </section>
+
       <section class="group" aria-labelledby="g-photo">
         <h2 class="eyebrow" id="g-photo">Image</h2>
         <div class="field" id="target-field" hidden>
@@ -979,8 +1043,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
           </div>
         </div>
 
-        <div class="field" data-tpl="une duo dossier">
-          <span class="label" id="panel-label">Panneau</span>
+        <div class="field" data-tpl="une duo dossier" data-car="1">
+          <span class="label" id="panel-label">Panneau <small id="panel-note"></small></span>
           <div class="seg" role="radiogroup" aria-labelledby="panel-label">
             <label><input type="radio" name="panel" id="panel-dark" value="dark"><span>Sombre</span></label>
             <label><input type="radio" name="panel" id="panel-light" value="light"><span>Clair</span></label>
@@ -1021,7 +1085,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
   <div class="sheet-card">
     <h2 id="sheet-title">Ton visuel est prêt</h2>
-    <img id="sheet-img" alt="Ton visuel, prêt à enregistrer">
+    <div class="sheet-imgs" id="sheet-imgs"></div>
     <p>Sur téléphone, fais un appui long sur l’image puis «&nbsp;Enregistrer l’image&nbsp;». Sur ordinateur, clic droit puis «&nbsp;Enregistrer l’image sous&nbsp;».</p>
     <button type="button" class="btn" id="sheet-close">Fermer</button>
   </div>
@@ -1116,9 +1180,22 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     aiText: '',
     aiAr: false,
     aiCaption: '',
-    captionMode: 'auto'
+    captionMode: 'auto',
+    carousel: false,
+    slides: [],
+    endSlide: true,
+    endText: 'Abonnez-vous à la page pour ne rien *manquer* de l’actualité.'
   };
-  const KIT_KEYS = ['name', 'handle', 'brand', 'alert', 'hl', 'font', 'textFx', 'badgeStyle', 'panel', 'boxes', 'format', 'frenchTypo'];
+  const KIT_KEYS = ['name', 'handle', 'brand', 'alert', 'hl', 'font', 'textFx', 'badgeStyle', 'panel', 'boxes', 'format', 'frenchTypo', 'endText'];
+  const SLIDE_KINDS = ['point', 'quote', 'figure'];
+  function cleanSlides(v) {
+    if (!Array.isArray(v)) return [];
+    return v.filter((x) => x && typeof x === 'object').slice(0, 8).map((x) => ({
+      kind: SLIDE_KINDS.indexOf(x.kind) !== -1 ? x.kind : 'point',
+      head: typeof x.head === 'string' ? x.head.slice(0, 240) : '',
+      body: typeof x.body === 'string' ? x.body.slice(0, 400) : ''
+    }));
+  }
   const ENUMS = {
     tpl: Object.keys(TPL),
     font: ['auto', 'grotesk', 'condensed', 'serif'],
@@ -1151,7 +1228,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       if (ENUMS[k] && ENUMS[k].indexOf(v) === -1) continue;
       if (COLOR_KEYS.indexOf(k) !== -1 && !/^#[0-9a-f]{6}$/i.test(v)) continue;
       if (k === 'shade') v = clamp(Math.round(v) || 0, 0, 100);
-      if (k === 'logo') { if (v && v.indexOf('data:image/') !== 0) continue; }
+      if (k === 'slides') v = cleanSlides(v);
+      else if (k === 'logo') { if (v && v.indexOf('data:image/') !== 0) continue; }
       else if (typeof v === 'string') v = v.slice(0, MAX_LEN[k] || 600);
       out[k] = v;
     }
@@ -1169,7 +1247,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         };
       }
     }
-    return Object.assign({}, DEFAULTS, sanitize(saved, Object.keys(DEFAULTS)));
+    const s = Object.assign({}, DEFAULTS, sanitize(saved, Object.keys(DEFAULTS)));
+    s.slides = cleanSlides(s.slides);
+    return s;
   }
   const state = loadState();
 
@@ -2441,7 +2521,174 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   const screen = $('screen');
   let regions = [];
 
-  function renderTo(c, tpl, S, regionsOut) {
+  /* ---------- carrousel : pages après la couverture ---------- */
+  const slideCount = () => (state.carousel ? 1 + state.slides.length + (state.endSlide ? 1 : 0) : 1);
+  function slideOf(i) {
+    if (i <= 0) return { kind: 'cover' };
+    if (i <= state.slides.length) return state.slides[i - 1];
+    return { kind: 'end' };
+  }
+  function drawSwipeCue(c, E) {
+    const r = 28;
+    const cx = E.W - 34;
+    const cy = Math.round(E.H / 2);
+    c.save();
+    c.fillStyle = 'rgba(0,0,0,0.45)';
+    c.beginPath();
+    c.arc(cx, cy, r, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = '#FFFFFF';
+    c.lineWidth = 4;
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    c.beginPath();
+    c.moveTo(cx - 6, cy - 12);
+    c.lineTo(cx + 6, cy);
+    c.lineTo(cx - 6, cy + 12);
+    c.stroke();
+    c.restore();
+  }
+  function slideFrame(c, E, i, n, bg, fg, muted) {
+    const { W, H, f } = E;
+    c.fillStyle = bg;
+    c.fillRect(0, 0, W, H);
+    if (fg) drawBrand(c, E, M, f.top, { mode: 'plain', color: fg, size: 34, maxW: W * 0.5, h: 56 });
+    c.save();
+    c.font = fontOf(SANS(700), 26);
+    c.textAlign = 'right';
+    c.fillStyle = muted;
+    c.fillText((i + 1) + NNB + '/' + NNB + n, W - M, f.top + 26);
+    c.restore();
+    return { top: f.top + 56 + 64, bot: H - f.bottom - 70 };
+  }
+  const bodyColor = () => (state.panel === 'light' ? '#2A2C33' : 'rgba(255,255,255,0.9)');
+  function drawInner(c, E, s, i, n) {
+    const { W, H, f } = E;
+    const P = panelColors(true);
+    const Z = slideFrame(c, E, i, n, P.bg, P.fg, P.muted);
+    const maxW = W - 2 * M;
+    const areaH = Z.bot - Z.top;
+    const fam = famFor(state.tpl);
+    let fit = null;
+    if (s.kind === 'quote') {
+      const qf = FAM.serif;
+      fit = fitText(c, s.head, { fam: qf, italic: true, weight: 600, max: 76 * qf.k, min: 34 * qf.k, maxW, maxH: areaH * 0.6, lh: qf.lh + 0.06 });
+      const qH = textBlockH(c, fit);
+      const markPx = 200;
+      c.font = fontOf(FAM.serif, markPx, { weight: 800 });
+      const markCap = c.measureText('“').actualBoundingBoxAscent || markPx * 0.72;
+      const parts = s.body.split(/,\s*/);
+      const who = typo(parts.shift() || '').trim().toLocaleUpperCase('fr-FR');
+      const role0 = typo(parts.join(', ')).trim();
+      const role = role0 ? role0.charAt(0).toLocaleUpperCase('fr-FR') + role0.slice(1) : '';
+      const whoH = (who ? 30 : 0) + (role ? 40 : 0);
+      const total = markCap * 0.55 + 20 + qH + (whoH ? 44 + 6 + whoH : 0);
+      let y = Math.round(Z.top + Math.max(0, (areaH - total) / 2));
+      c.save();
+      c.font = fontOf(FAM.serif, markPx, { weight: 800 });
+      c.fillStyle = P.hl;
+      c.fillText('“', M - 6, y + markCap);
+      c.restore();
+      y += Math.round(markCap * 0.55) + 20;
+      c.font = fit.font;
+      drawRich(c, E, fit, M, y + capH(c, fit.px), { color: P.fg, hl: P.hl, fx: 'none' });
+      y += qH + 44;
+      if (whoH) {
+        c.fillStyle = P.hl;
+        c.fillRect(M, y, 72, 6);
+        y += 6 + 34;
+        if (who) {
+          c.save();
+          c.font = fontOf(SANS(800), 28);
+          c.fillStyle = P.fg;
+          drawSpaced(c, fitSpaced(c, who, maxW, 28 * 0.12), M, y, 28 * 0.12);
+          c.restore();
+          y += 40;
+        }
+        if (role) drawSmall(c, E, role, M, y, { size: 26, weight: 500, color: P.muted, maxW });
+      }
+    } else if (s.kind === 'figure') {
+      const figTxt = typo(s.head.trim()).replace(/ /g, NB);
+      const figFam = fam === FAM.condensed ? BADGE_COND : fam === FAM.serif ? { family: FAM.serif.family, weight: 800 } : SANS(900);
+      let fpx = 0;
+      let fcap = 0;
+      if (figTxt) {
+        c.font = fontOf(figFam, 300);
+        const w0 = mw(c, figTxt) || 1;
+        fpx = Math.max(60, Math.min(fam === FAM.condensed ? 340 : 280, Math.floor((300 * maxW) / w0), (areaH * 0.42) / 0.72));
+        c.font = fontOf(figFam, fpx);
+        fcap = capH(c, fpx);
+      }
+      fit = fitText(c, s.body, { fam, max: 60 * fam.k, min: 30 * fam.k, maxW, maxH: areaH * 0.34, lh: fam.lh + 0.06, weight: fam === FAM.grotesk ? 700 : undefined });
+      const tH = textBlockH(c, fit);
+      const total = (figTxt ? fcap + 36 + 8 + 44 : 0) + tH;
+      let y = Math.round(Z.top + Math.max(0, (areaH - total) / 2));
+      if (figTxt) {
+        c.save();
+        c.font = fontOf(figFam, fpx);
+        c.fillStyle = P.hl;
+        c.fillText(figTxt, M - Math.round(fpx * 0.02), y + fcap);
+        c.restore();
+        y += fcap + 36;
+        c.fillStyle = state.alert;
+        c.fillRect(M, y, 96, 8);
+        y += 8 + 44;
+      }
+      c.font = fit.font;
+      drawRich(c, E, fit, M, y + capH(c, fit.px), { color: P.fg, hl: P.hl, fx: 'none' });
+    } else {
+      const head = s.head.replace(/\*/g, '').trim() ? fitText(c, s.head, { fam, max: 86 * fam.k, min: 40 * fam.k, maxW, maxH: areaH * 0.42, lh: fam.lh }) : null;
+      const headH = head ? textBlockH(c, head) : 0;
+      const gap = head ? 44 : 0;
+      const body = s.body.trim() ? fitText(c, s.body, { fam: FAM.grotesk, weight: 500, max: 50, min: 28, maxW, maxH: Math.max(60, areaH - 38 - headH - gap), lh: 1.34 }) : null;
+      const bodyH = body ? textBlockH(c, body) : 0;
+      const total = 38 + headH + gap + bodyH;
+      let y = Math.round(Z.top + Math.max(0, (areaH - total) / 2));
+      c.fillStyle = state.alert;
+      c.fillRect(M, y, 96, 8);
+      y += 38;
+      if (head) {
+        c.font = head.font;
+        drawRich(c, E, head, M, y + capH(c, head.px), { color: P.fg, hl: P.hl, fx: 'none' });
+        y += headH + gap;
+      }
+      if (body) {
+        c.font = body.font;
+        drawRich(c, E, body, M, y + capH(c, body.px), { color: bodyColor(), hl: P.hl, fx: 'none' });
+      }
+      fit = { px: head ? head.px : body ? body.px : 0, lines: (head ? head.lines : []).concat(body ? body.lines : []), overflow: !!((head && head.overflow) || (body && body.overflow)) };
+    }
+    drawFooter(c, E, metaText(), handleText(), M, W - M, H - f.bottom, { color: P.muted, size: 22 });
+    return fit;
+  }
+  function drawEnd(c, E, i, n) {
+    const { W, H, f } = E;
+    const gr = c.createLinearGradient(0, 0, W, H);
+    gr.addColorStop(0, state.brand);
+    gr.addColorStop(1, mix(state.brand, '#000000', 0.45));
+    const Z = slideFrame(c, E, i, n, gr, '', 'rgba(255,255,255,0.75)');
+    const maxW = W - 2 * M;
+    const areaH = Z.bot - Z.top;
+    const fam = famFor(state.tpl);
+    const fit = fitText(c, state.endText, { fam, max: 66 * fam.k, min: 34 * fam.k, maxW, maxH: areaH * 0.4, lh: fam.lh });
+    const tH = textBlockH(c, fit);
+    const handle = handleText();
+    const brandH = logoImg ? 150 : 100;
+    const total = brandH + 50 + 8 + 50 + tH + (handle ? 70 : 0);
+    let y = Math.round(Z.top + Math.max(0, (areaH - total) / 2));
+    const b = drawBrand(c, E, M, y, { mode: 'plain', color: '#FFFFFF', size: 84, maxW, h: 150 });
+    y += Math.max(b.h, 40) + 50;
+    c.fillStyle = state.hl;
+    c.fillRect(M, y, 96, 8);
+    y += 8 + 50;
+    c.font = fit.font;
+    drawRich(c, E, fit, M, y + capH(c, fit.px), { color: '#FFFFFF', hl: state.hl, fx: 'none' });
+    y += tH;
+    if (handle) drawSmall(c, E, handle, M, y + 70, { size: 30, weight: 700, color: state.hl, maxW });
+    if (state.showDate) drawFooter(c, E, DATE_STR, '', M, W - M, H - f.bottom, { color: 'rgba(255,255,255,0.75)', size: 22 });
+    return fit;
+  }
+  function prepCanvas(c, S) {
     const f = FORMATS[state.format];
     c.setTransform(S, 0, 0, S, 0, 0);
     c.globalAlpha = 1;
@@ -2453,25 +2700,57 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     c.imageSmoothingEnabled = true;
     c.imageSmoothingQuality = 'high';
     c.clearRect(0, 0, f.w, f.h);
+    return f;
+  }
+  function renderTo(c, tpl, S, regionsOut) {
+    const f = prepCanvas(c, S);
     return TPL[tpl].draw(c, { W: f.w, H: f.h, f, key: state.format, S, regions: regionsOut || null });
+  }
+  function drawSlideTo(c, idx, S, regionsOut) {
+    const n = slideCount();
+    const i = clamp(idx, 0, n - 1);
+    if (i === 0) {
+      const fit = renderTo(c, state.tpl, S, regionsOut);
+      const f = FORMATS[state.format];
+      if (n > 1) drawSwipeCue(c, { W: f.w, H: f.h });
+      return fit;
+    }
+    const f = prepCanvas(c, S);
+    const E = { W: f.w, H: f.h, f, key: state.format, S, regions: null };
+    const s = slideOf(i);
+    const fit = s.kind === 'end' ? drawEnd(c, E, i, n) : drawInner(c, E, s, i, n);
+    if (i < n - 1) drawSwipeCue(c, E);
+    return fit;
   }
   let version = 0;
   let lastFit = null;
+  let slideIdx = 0;
   function render() {
     const f = FORMATS[state.format];
     if (canvas.width !== f.w) canvas.width = f.w;
     if (canvas.height !== f.h) canvas.height = f.h;
     version++;
+    const n = slideCount();
+    if (slideIdx > n - 1) slideIdx = n - 1;
     const reg = [];
-    const fit = renderTo(ctx, state.tpl, 1, reg);
+    const fit = drawSlideTo(ctx, slideIdx, 1, reg);
     lastFit = fit || null;
     regions = reg;
     updateReadout(f, fit);
+    updatePager();
     if (!mini.hidden) drawMini();
     schedulePrep();
   }
+  const fitCv = document.createElement('canvas');
+  function coverFit() {
+    const f = FORMATS[state.format];
+    fitCv.width = Math.round(f.w / 10);
+    fitCv.height = Math.round(f.h / 10);
+    return renderTo(fitCv.getContext('2d'), state.tpl, 0.1, null);
+  }
   function updateReadout(f, fit) {
-    $('dims').textContent = f.w + ' × ' + f.h + ' px · ' + f.ratio;
+    const pages = slideCount();
+    $('dims').textContent = f.w + ' × ' + f.h + ' px · ' + f.ratio + (pages > 1 ? ' · page ' + (slideIdx + 1) + '/' + pages : '');
     const el = $('fit-info');
     const n = fit ? fit.lines.length : 0;
     el.classList.toggle('warn', !!(fit && fit.overflow));
@@ -2501,7 +2780,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   let sideTimer = 0;
   function scheduleSide() {
     clearTimeout(sideTimer);
-    sideTimer = setTimeout(() => { renderThumbs(); updateCaption(); refreshAiOut(); }, 320);
+    sideTimer = setTimeout(() => { renderThumbs(); renderStrip(); updateCaption(); refreshAiOut(); }, 320);
   }
   function changed() { persist(); schedule(); scheduleSide(); }
 
@@ -2649,12 +2928,14 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     syncShade();
     updateCount();
     updateChips();
+    syncSlideEditor();
   }
   function applyTpl() {
     for (const el of document.querySelectorAll('[data-tpl]')) {
       if (el.tagName === 'CANVAS') continue;
-      el.hidden = el.dataset.tpl.split(' ').indexOf(state.tpl) === -1;
+      el.hidden = el.dataset.tpl.split(' ').indexOf(state.tpl) === -1 && !(el.dataset.car && state.carousel);
     }
+    $('panel-note').textContent = state.carousel ? 'fond des pages du carrousel' : '';
     $('title-label').textContent = state.tpl === 'citation' ? 'Citation' : state.tpl === 'chiffre' ? 'Explication' : 'Titre';
     $('photo-label').textContent = state.tpl === 'duo' || state.tpl === 'dossier' ? 'Photo 1' : 'Photo';
     $('tpl-desc').textContent = TPL[state.tpl].desc;
@@ -2870,6 +3151,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   }
   function startMarking() {
     if (state.tpl !== 'dossier') return;
+    if (slideIdx !== 0) { slideIdx = 0; render(); }
     marking = true;
     screen.classList.add('marking');
     canvas.style.cursor = '';
@@ -3073,32 +3355,118 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
 
   /* ---------- export ---------- */
   let downloads = null;
-  const noDirectSave = () => { if (!STANDALONE) $('download-label').textContent = 'Obtenir l’image'; };
+  function updateDownloadLabel() {
+    const n = slideCount();
+    const verb = STANDALONE || downloads ? 'Télécharger' : 'Obtenir';
+    $('download-label').textContent = n > 1 ? verb + ' les ' + n + ' images' : verb + ' l’image';
+  }
   try {
     if (!STANDALONE && window.claude && typeof window.claude.use === 'function') {
-      window.claude.use('downloads').then((ns) => {
-        downloads = ns || null;
-        if (!downloads) noDirectSave();
-      }, () => { downloads = null; noDirectSave(); });
-    } else {
-      noDirectSave();
+      window.claude.use('downloads').then((ns) => { downloads = ns || null; updateDownloadLabel(); }, () => { downloads = null; updateDownloadLabel(); });
     }
-  } catch (e) { downloads = null; noDirectSave(); }
+  } catch (e) { downloads = null; }
 
-  function fileName() {
+  function stamp() {
     const d = new Date();
     const p = (v) => String(v).padStart(2, '0');
-    return state.tpl + '-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.jpg';
+    return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes());
   }
-  function directDownload(blob) {
+  const fileName = (k) => state.tpl + '-' + stamp() + (k ? '-' + k : '') + '.jpg';
+  function directDownload(blob, name) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = fileName();
+    a.download = name || fileName();
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /* toutes les pages du carrousel, en JPG pleine taille */
+  async function slideFiles() {
+    const f = FORMATS[state.format];
+    const n = slideCount();
+    const files = [];
+    const slideCv = document.createElement('canvas');
+    slideCv.width = f.w;
+    slideCv.height = f.h;
+    const c = slideCv.getContext('2d');
+    for (let i = 0; i < n; i++) {
+      drawSlideTo(c, i, 1, null);
+      const blob = await new Promise((resolve) => slideCv.toBlob(resolve, 'image/jpeg', 0.95));
+      if (!blob) return null;
+      files.push(new File([blob], fileName(i + 1), { type: 'image/jpeg' }));
+    }
+    return files;
+  }
+
+  /* un .zip sans compression (les JPG ne se compressent pas) pour tout enregistrer d'un coup */
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(buf) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  async function makeZip(files) {
+    const enc = new TextEncoder();
+    const d = new Date();
+    const time = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF;
+    const date = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+    const head = [];
+    const central = [];
+    let offset = 0;
+    let cdSize = 0;
+    for (const file of files) {
+      const data = new Uint8Array(await file.arrayBuffer());
+      const name = enc.encode(file.name);
+      const crc = crc32(data);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true);
+      lh.setUint16(4, 20, true);
+      lh.setUint16(6, 0x0800, true);
+      lh.setUint16(8, 0, true);
+      lh.setUint16(10, time, true);
+      lh.setUint16(12, date, true);
+      lh.setUint32(14, crc, true);
+      lh.setUint32(18, data.length, true);
+      lh.setUint32(22, data.length, true);
+      lh.setUint16(26, name.length, true);
+      lh.setUint16(28, 0, true);
+      head.push(lh.buffer, name, data);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true);
+      ch.setUint16(4, 20, true);
+      ch.setUint16(6, 20, true);
+      ch.setUint16(8, 0x0800, true);
+      ch.setUint16(10, 0, true);
+      ch.setUint16(12, time, true);
+      ch.setUint16(14, date, true);
+      ch.setUint32(16, crc, true);
+      ch.setUint32(20, data.length, true);
+      ch.setUint32(24, data.length, true);
+      ch.setUint16(28, name.length, true);
+      ch.setUint32(42, offset, true);
+      central.push(ch.buffer, name);
+      offset += 30 + name.length + data.length;
+      cdSize += 46 + name.length;
+    }
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(8, files.length, true);
+    end.setUint16(10, files.length, true);
+    end.setUint32(12, cdSize, true);
+    end.setUint32(16, offset, true);
+    return new Blob(head.concat(central, [end.buffer]), { type: 'application/zip' });
   }
 
   let canShareFiles = false;
@@ -3111,32 +3479,37 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
 
   let ready = null;
   let prepTimer = 0;
-  function prepareFile() {
+  function prepareFiles() {
     const v = version;
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
-        if (blob) ready = { v, file: new File([blob], fileName(), { type: 'image/jpeg' }) };
-        resolve(ready && ready.v === v ? ready.file : null);
-      }, 'image/jpeg', 0.95);
-    });
+    const job = slideCount() > 1
+      ? slideFiles()
+      : new Promise((resolve) => canvas.toBlob((blob) => resolve(blob ? [new File([blob], fileName(), { type: 'image/jpeg' })] : null), 'image/jpeg', 0.95));
+    return job.then((files) => {
+      if (files && v === version) ready = { v, files };
+      return files;
+    }, () => null);
   }
   function schedulePrep() {
     if (!canShareFiles) return;
     clearTimeout(prepTimer);
-    prepTimer = setTimeout(prepareFile, 600);
+    prepTimer = setTimeout(prepareFiles, slideCount() > 1 ? 900 : 600);
   }
   $('share').addEventListener('click', async () => {
     updateCaption();
     const caption = $('caption').value;
     if (caption && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(caption).catch(() => {});
-    let file = ready && ready.v === version ? ready.file : null;
-    if (!file) {
-      say('Préparation de l’image…');
-      file = await prepareFile();
-      if (!file) { say('L’image n’a pas pu être créée. Réessaie.'); return; }
+    let files = ready && ready.v === version ? ready.files : null;
+    if (!files) {
+      say(slideCount() > 1 ? 'Préparation des images…' : 'Préparation de l’image…');
+      files = await prepareFiles();
+      if (!files) { say('L’image n’a pas pu être créée. Réessaie.'); return; }
+    }
+    if (files.length > 1 && !(typeof navigator.canShare === 'function' && navigator.canShare({ files }))) {
+      say('Ton téléphone ne partage pas plusieurs images d’un coup. Utilise Télécharger.');
+      return;
     }
     try {
-      await navigator.share({ files: [file] });
+      await navigator.share({ files });
       say(caption ? 'Légende copiée : colle-la dans ton post.' : '');
     } catch (e) {
       if (e && e.name === 'AbortError') { say(''); return; }
@@ -3146,9 +3519,18 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   });
 
   const sheet = $('sheet');
-  function openSheet(blob) {
-    readAsDataURL(blob).then((url) => {
-      $('sheet-img').src = url;
+  function openSheet(blobs) {
+    const list = Array.isArray(blobs) ? blobs : [blobs];
+    Promise.all(list.map(readAsDataURL)).then((urls) => {
+      const box = $('sheet-imgs');
+      box.textContent = '';
+      urls.forEach((u, i) => {
+        const im = document.createElement('img');
+        im.src = u;
+        im.alt = list.length > 1 ? 'Page ' + (i + 1) + ' du carrousel' : 'Ton visuel, prêt à enregistrer';
+        box.appendChild(im);
+      });
+      $('sheet-title').textContent = list.length > 1 ? 'Tes ' + list.length + ' images sont prêtes' : 'Ton visuel est prêt';
       sheet.hidden = false;
       $('sheet-close').focus();
       say('');
@@ -3167,16 +3549,28 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   async function exportImage() {
     if (busy) return;
     busy = true;
-    say('Préparation de l’image…');
+    const many = slideCount() > 1;
+    say(many ? 'Préparation des ' + slideCount() + ' images…' : 'Préparation de l’image…');
     try {
       if (marking) stopMarking();
       render();
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
-      if (!blob) { say('L’image n’a pas pu être créée. Réessaie.'); return; }
+      let files = null;
+      if (many) {
+        files = await slideFiles();
+      } else {
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+        files = blob ? [new File([blob], fileName(), { type: 'image/jpeg' })] : null;
+      }
+      if (!files) { say('L’image n’a pas pu être créée. Réessaie.'); return; }
       if (downloads) {
         try {
-          await downloads.save({ filename: fileName(), data: blob });
-          say('Image enregistrée.');
+          if (many) {
+            await downloads.save({ filename: 'carrousel-' + stamp() + '.zip', data: await makeZip(files) });
+            say(files.length + ' images enregistrées dans un fichier .zip.');
+          } else {
+            await downloads.save({ filename: files[0].name, data: files[0] });
+            say('Image enregistrée.');
+          }
           return;
         } catch (err) {
           const code = err && err.code;
@@ -3185,11 +3579,14 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         }
       }
       if (STANDALONE) {
-        directDownload(blob);
-        say('Image téléchargée.');
+        for (let i = 0; i < files.length; i++) {
+          directDownload(files[i], files[i].name);
+          if (i < files.length - 1) await pause(400);
+        }
+        say(many ? files.length + ' images téléchargées, dans l’ordre des pages.' : 'Image téléchargée.');
         return;
       }
-      openSheet(blob);
+      openSheet(files);
     } catch (e) {
       say('L’image n’a pas pu être créée. Réessaie.');
     } finally {
@@ -3267,6 +3664,195 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     }
   }
 
+  /* ---------- carrousel : navigation et édition des pages ---------- */
+  const stripEl = $('strip');
+  let stripCount = -1;
+  function buildStrip() {
+    const n = slideCount();
+    if (n === stripCount) return;
+    stripCount = n;
+    stripEl.textContent = '';
+    for (let i = 0; i < n; i++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Page ' + (i + 1));
+      const cv = document.createElement('canvas');
+      cv.width = 96;
+      cv.height = 120;
+      const tag = document.createElement('span');
+      tag.textContent = String(i + 1);
+      b.append(cv, tag);
+      b.addEventListener('click', () => goSlide(i));
+      stripEl.appendChild(b);
+    }
+    scheduleSide();
+  }
+  function renderStrip() {
+    if (!state.carousel) return;
+    buildStrip();
+    const f = FORMATS[state.format];
+    const w = 96;
+    const h = Math.round((w * f.h) / f.w);
+    Array.prototype.forEach.call(stripEl.children, (b, i) => {
+      const cv = b.firstChild;
+      if (cv.width !== w) cv.width = w;
+      if (cv.height !== h) cv.height = h;
+      try { drawSlideTo(cv.getContext('2d'), i, w / f.w, null); } catch (e) { /* une vignette ratée ne bloque pas les autres */ }
+    });
+  }
+  function updatePager() {
+    const on = state.carousel;
+    $('pager').hidden = !on;
+    screen.classList.toggle('swipe', on);
+    if (on) {
+      const n = slideCount();
+      buildStrip();
+      $('pg-prev').disabled = slideIdx <= 0;
+      $('pg-next').disabled = slideIdx >= n - 1;
+      Array.prototype.forEach.call(stripEl.children, (b, i) => b.setAttribute('aria-current', String(i === slideIdx)));
+    }
+    updateDownloadLabel();
+  }
+  function goSlide(i) {
+    const next = clamp(i, 0, slideCount() - 1);
+    if (next !== 0 && marking) stopMarking();
+    slideIdx = next;
+    schedule();
+    updatePager();
+    syncSlideEditor();
+    const b = stripEl.children[slideIdx];
+    if (b) stripEl.scrollLeft = Math.max(0, b.offsetLeft - (stripEl.clientWidth - b.offsetWidth) / 2);
+  }
+  const SLIDE_LABELS = {
+    point: { head: 'Titre de la page', body: 'Texte', hint: 'Entoure des mots d’astérisques pour les colorer, comme *ceci*.', headMax: 120 },
+    quote: { head: 'Citation exacte', body: 'Auteur, fonction', hint: 'Recopie la phrase mot pour mot : les guillemets sont ajoutés tout seuls.', headMax: 240 },
+    figure: { head: 'Chiffre', body: 'Explication', hint: 'Le chiffre tel qu’il doit s’afficher, par exemple 85 % ou 12 milliards.', headMax: 12 }
+  };
+  const currentInner = () => (slideIdx > 0 && slideIdx <= state.slides.length ? state.slides[slideIdx - 1] : null);
+  function syncSlideEditor() {
+    const on = state.carousel;
+    $('car-on').checked = on;
+    $('car-off-hint').hidden = on;
+    $('car-body').hidden = !on;
+    if (!on) return;
+    const s = currentInner();
+    $('car-edit').hidden = !s;
+    $('car-cover-note').hidden = slideIdx !== 0;
+    $('car-end-note').hidden = slideOf(slideIdx).kind !== 'end';
+    if (s) {
+      const L = SLIDE_LABELS[s.kind];
+      $('car-page-label').textContent = 'Page ' + (slideIdx + 1) + ' sur ' + slideCount();
+      for (const r of document.querySelectorAll('input[name="slide-kind"]')) r.checked = r.value === s.kind;
+      $('slide-head-label').textContent = L.head;
+      $('slide-body-label').textContent = L.body;
+      $('slide-hint').textContent = L.hint;
+      $('slide-head').maxLength = L.headMax;
+      if (document.activeElement !== $('slide-head')) $('slide-head').value = s.head;
+      if (document.activeElement !== $('slide-body')) $('slide-body').value = s.body;
+      $('slide-up').disabled = slideIdx <= 1;
+      $('slide-down').disabled = slideIdx >= state.slides.length;
+    }
+    $('slide-add').disabled = state.slides.length >= 8;
+    $('end-on').checked = state.endSlide;
+    $('end-field').hidden = !state.endSlide;
+    if (document.activeElement !== $('end-text')) $('end-text').value = state.endText;
+  }
+  function slidesChanged() {
+    changed();
+    applyTpl();
+    updatePager();
+    syncSlideEditor();
+  }
+  function starterSlides() {
+    const out = [{ kind: 'point', head: 'Ce qu’il faut *savoir*', body: state.context.trim() || 'Écris ici les faits importants, en deux ou trois phrases.' }];
+    const q = quoteText();
+    if (q && state.author.trim()) out.push({ kind: 'quote', head: q, body: [state.author.trim(), state.role.trim()].filter(Boolean).join(', ') });
+    return out;
+  }
+  $('car-on').addEventListener('change', () => {
+    state.carousel = $('car-on').checked;
+    if (state.carousel && !state.slides.length) state.slides = starterSlides();
+    slideIdx = state.carousel && state.slides.length ? 1 : 0;
+    slidesChanged();
+    if (ai.result) refreshAiOut();
+  });
+  for (const r of document.querySelectorAll('input[name="slide-kind"]')) {
+    r.addEventListener('change', () => {
+      const s = currentInner();
+      if (!r.checked || !s) return;
+      s.kind = r.value;
+      slidesChanged();
+    });
+  }
+  $('slide-head').addEventListener('input', () => {
+    const s = currentInner();
+    if (!s) return;
+    s.head = $('slide-head').value;
+    changed();
+  });
+  $('slide-body').addEventListener('input', () => {
+    const s = currentInner();
+    if (!s) return;
+    s.body = $('slide-body').value;
+    changed();
+  });
+  function moveSlide(d) {
+    const i = slideIdx - 1;
+    const j = i + d;
+    if (i < 0 || j < 0 || j >= state.slides.length) return;
+    const t = state.slides[i];
+    state.slides[i] = state.slides[j];
+    state.slides[j] = t;
+    slideIdx = j + 1;
+    slidesChanged();
+  }
+  $('slide-up').addEventListener('click', () => moveSlide(-1));
+  $('slide-down').addEventListener('click', () => moveSlide(1));
+  $('slide-del').addEventListener('click', () => {
+    const i = slideIdx - 1;
+    if (i < 0 || i >= state.slides.length) return;
+    state.slides.splice(i, 1);
+    slideIdx = Math.min(slideIdx, state.slides.length);
+    slidesChanged();
+  });
+  $('slide-add').addEventListener('click', () => {
+    if (state.slides.length >= 8) return;
+    const at = slideIdx >= 1 && slideIdx <= state.slides.length ? slideIdx : state.slides.length;
+    state.slides.splice(at, 0, { kind: 'point', head: '', body: '' });
+    slideIdx = at + 1;
+    slidesChanged();
+    $('slide-head').focus();
+  });
+  $('end-on').addEventListener('change', () => {
+    state.endSlide = $('end-on').checked;
+    slidesChanged();
+  });
+  $('end-text').addEventListener('input', () => {
+    state.endText = $('end-text').value;
+    changed();
+  });
+  $('pg-prev').addEventListener('click', () => goSlide(slideIdx - 1));
+  $('pg-next').addEventListener('click', () => goSlide(slideIdx + 1));
+  let swipe = null;
+  canvas.addEventListener('pointerdown', (e) => {
+    swipe = state.carousel && !marking && e.pointerType !== 'mouse' ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+  });
+  canvas.addEventListener('pointerup', (e) => {
+    if (!swipe || e.pointerId !== swipe.id) return;
+    const dx = e.clientX - swipe.x;
+    const dy = e.clientY - swipe.y;
+    swipe = null;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) goSlide(slideIdx + (dx < 0 ? 1 : -1));
+  });
+  canvas.addEventListener('pointercancel', () => { swipe = null; });
+  document.addEventListener('keydown', (e) => {
+    if (!state.carousel || e.metaKey || e.ctrlKey || e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    const t = document.activeElement;
+    if (t && t !== document.body && t !== canvas && !$('pager').contains(t)) return;
+    e.preventDefault();
+    goSlide(slideIdx + (e.key === 'ArrowRight' ? 1 : -1));
+  });
+
   /* ---------- assistant de rédaction ----------
      Trois moteurs, du meilleur au plus simple :
      1. Claude dans l'artefact (capacité sample, sur le compte Claude de la personne) ;
@@ -3280,7 +3866,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   const API_MODELS = { quality: 'claude-sonnet-5-5', fast: 'claude-haiku-5-5' };
   const SAMPLE_TIERS = { quality: 'default', fast: 'quick' };
   const PERMANENT = ['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'];
-  const CONTENT_KEYS = ['tpl', 'badge', 'kicker', 'title', 'figure', 'author', 'role', 'cap1', 'cap2', 'quote', 'context', 'docTitle', 'points', 'source', 'credit', 'aiCaption', 'captionMode'];
+  const CONTENT_KEYS = ['tpl', 'badge', 'kicker', 'title', 'figure', 'author', 'role', 'cap1', 'cap2', 'quote', 'context', 'docTitle', 'points', 'source', 'credit', 'aiCaption', 'captionMode', 'slides', 'carousel'];
 
   const aiConf = (() => {
     const o = readJSON(AI_CONF_KEY) || {};
@@ -3361,6 +3947,12 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       checks: arr(o.a_verifier).map((s) => oneLine(s, 220)).filter(Boolean).slice(0, 6),
       caption: block(o.legende, 2400),
       captionAr: block(o.legende_ar, 1600),
+      slides: arr(o.carrousel).map(obj).map((x) => {
+        const g = low(x.genre);
+        const kind = g === 'citation' ? 'quote' : g === 'chiffre' ? 'figure' : 'point';
+        const head = kind === 'quote' ? unquote(oneLine(x.titre, 240)) : kind === 'figure' ? oneLine(x.titre, 12) : stars(oneLine(x.titre, 90));
+        return { kind, head, body: oneLine(x.texte, kind === 'quote' ? 100 : 320) };
+      }).filter((s) => (s.kind === 'figure' ? /\d/.test(s.head) : s.kind === 'quote' ? !!s.head : !!(plain(s.head).trim() || s.body))).slice(0, 6),
       alts: [],
       titleIndex: 0
     };
@@ -3411,6 +4003,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     state.docTitle = R.doc.title;
     state.points = R.doc.points.join('\n');
     state.source = R.source;
+    state.slides = R.slides.map((s) => Object.assign({}, s));
     state.aiCaption = (state.aiAr ? joinCaption(R.caption, R.captionAr) : R.caption).slice(0, MAX_LEN.aiCaption);
     state.captionMode = state.aiCaption ? 'ai' : 'auto';
     R.titleIndex = 0;
@@ -3440,8 +4033,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     if (photo) { state.credit = ''; $('credit').value = ''; }
   }
   function takeUndo() {
-    const u = { state: {}, slots: {} };
+    const u = { state: {}, slots: {}, slide: slideIdx };
     for (const k of CONTENT_KEYS) u.state[k] = state[k];
+    u.state.slides = state.slides.map((s) => Object.assign({}, s));
     for (const k of Object.keys(SLOT_UI)) {
       const s = slots[k];
       u.slots[k] = { img: s.img, name: $(SLOT_UI[k].name).textContent, crop: Object.assign({}, s.crop), marks: s.marks ? s.marks.slice() : s.marks };
@@ -3452,6 +4046,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const u = ai.undo;
     if (!u) return;
     Object.assign(state, u.state);
+    state.slides = u.state.slides.map((s) => Object.assign({}, s));
+    slideIdx = u.slide || 0;
     for (const k of Object.keys(u.slots)) {
       const s = u.slots[k];
       if (slots[k].img !== s.img) setSlot(k, s.img, s.name);
@@ -3472,14 +4068,13 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   }
   function fitTitle(R) {
     if (famOf(state.tpl) !== 'h' || R.titles.indexOf(state.title) === -1) return;
-    render();
-    if (!lastFit || !lastFit.overflow) return;
+    const fits = () => { const ft = coverFit(); return !(ft && ft.overflow); };
+    if (fits()) return;
     const order = R.titles.map((t, i) => i).sort((a, b) => plain(R.titles[a]).length - plain(R.titles[b]).length);
     let pick = order[0];
     for (const i of order) {
       state.title = R.titles[i];
-      render();
-      if (lastFit && !lastFit.overflow) { pick = i; break; }
+      if (fits()) { pick = i; break; }
     }
     R.titleIndex = pick;
     state.title = R.titles[pick];
@@ -3539,6 +4134,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     images: { type: 'array', items: strict({ numero: { type: 'integer' }, type: { type: 'string', enum: ['photo', 'document', 'capture'] } }) },
     photos_a_trouver: { type: 'array', items: STR },
     a_verifier: { type: 'array', items: STR },
+    carrousel: { type: 'array', items: strict({ genre: { type: 'string', enum: ['point', 'citation', 'chiffre'] }, titre: STR, texte: STR }) },
     legende: STR,
     legende_ar: STR
   });
@@ -3551,6 +4147,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     personnes: [{ nom: '…', fonction: '…' }],
     document: { titre: '', points: [] },
     source: '', images: [], photos_a_trouver: ['…'], a_verifier: ['…'],
+    carrousel: [{ genre: 'point', titre: '…', texte: '…' }],
     legende: '…', legende_ar: ''
   });
   function buildPrompt(text, n, ar) {
@@ -3593,6 +4190,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       '- images : ' + (n ? 'pour chaque image jointe, dans l’ordre, son numero et son type : "photo" (à mettre sur le visuel), "document" (page officielle à montrer) ou "capture" (texte à lire seulement).' : '[] (aucune image jointe).'),
       '- photos_a_trouver : 1 ou 2 photos à ajouter au visuel, par exemple "Portrait officiel du ministre de la Santé".',
       '- a_verifier : 2 à 5 points précis à contrôler avant de publier (orthographe d’un nom, chiffre, date, info non confirmée, accusation grave à sourcer).',
+      '- carrousel : 3 à 5 pages qui suivent la couverture et racontent l’info dans l’ordre (les faits, la déclaration, le chiffre, le contexte, la suite), sans répéter le titre de la couverture. Chaque page a un genre : "point" (titre de 45 caractères au plus avec 1 ou 2 mots clés entre astérisques, texte de 220 caractères au plus), "citation" (titre : la phrase exacte, texte : « Prénom Nom, fonction ») ou "chiffre" (titre : la valeur, 12 caractères au plus ; texte : l’explication en 90 caractères au plus). Mets une citation ou un chiffre seulement s’ils figurent dans le texte.',
       '- legende : la légende Facebook en français : 3 courts paragraphes (accroche, faits essentiels, contexte ou suite), puis "Source : …" si elle est connue, puis 3 à 5 hashtags. 900 caractères au plus, 2 émojis au plus.',
       '- legende_ar : ' + (ar ? 'la même légende traduite en arabe standard, fidèle, sans hashtags.' : '"" (vide).'),
       ''
@@ -3604,6 +4202,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   const STAGES = [
     ['"legende_ar"', 'Traduction de la légende en arabe'],
     ['"legende"', 'Rédaction de la légende'],
+    ['"carrousel"', 'Préparation du carrousel'],
     ['"a_verifier"', 'Points à vérifier'],
     ['"document"', 'Lecture du document'],
     ['"citation"', 'Repérage des citations'],
@@ -3959,7 +4558,30 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     if (/corruption|détournement|assassinat|meurtre|viol\b|torture|complot|trahison|escroquerie/i.test(flat)) checks.push('Accusation grave : assure-toi qu’elle est attribuée à quelqu’un et sourcée.');
     if (!source) checks.push('Aucune source dans le texte : précise d’où vient l’info.');
     checks.push('Mode simple : le titre reprend une phrase de ton texte, relis-le.');
+    const endDot = (s) => (/[.!?…»"]$/.test(s) ? s : s + '.');
+    const isQuote = (s) => !!quote && s.indexOf(quote.text.slice(0, 20)) !== -1;
+    const facts = sents.filter((s, i) => i > start && !isQuote(s) && !(keyNum && s === keyNum.sentence));
+    let used = 0;
+    const pack = (max) => {
+      let out = '';
+      while (used < facts.length) {
+        const t = endDot(facts[used]);
+        if (!out) { out = t.length > max ? clip(t, max - 1) + '…' : t; used++; continue; }
+        if (out.length + 1 + t.length > max) break;
+        out += ' ' + t;
+        used++;
+      }
+      return out;
+    };
+    const pages = [];
+    const first = pack(240);
+    if (first) pages.push({ genre: 'point', titre: 'Ce qu’il faut *savoir*', texte: first });
+    if (quote) pages.push({ genre: 'citation', titre: quote.text, texte: [quote.author, capFirst(quote.role)].filter(Boolean).join(', ') });
+    if (keyNum) pages.push({ genre: 'chiffre', titre: figureOf(keyNum), texte: clip(keyNum.sentence, 90) });
+    const more = pack(240);
+    if (more) pages.push({ genre: 'point', titre: 'Le *contexte*', texte: more });
     return {
+      carrousel: pages,
       modele: tpl,
       alternatives: alts,
       raison: reason,
@@ -4146,6 +4768,12 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   function refreshAiOut() {
     const R = ai.result;
     if (!R) return;
+    const nPages = R.slides.length;
+    $('ai-car-field').hidden = !nPages;
+    $('ai-car-text').textContent = state.carousel
+      ? 'Carrousel activé : ' + slideCount() + ' pages. Glisse l’aperçu ou touche les vignettes.'
+      : nPages + ' page' + (nPages > 1 ? 's' : '') + ' prête' + (nPages > 1 ? 's' : '') + ' après la couverture.';
+    $('ai-car-go').hidden = state.carousel;
     for (const b of $('ai-alts').children) b.setAttribute('aria-pressed', String(b.dataset.t === state.tpl));
     $('ai-titles-field').hidden = famOf(state.tpl) !== 'h' || R.titles.length < 2;
     Array.prototype.forEach.call($('ai-titles').children, (b, i) => b.setAttribute('aria-pressed', String(R.titles[i] === state.title)));
@@ -4238,6 +4866,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       ai.runPics = pics;
       if (marking) stopMarking();
       applyResult(R);
+      slideIdx = 0;
       placePics(R, R.tpl);
       ai.result = R;
       ai.undo = undo;
@@ -4312,6 +4941,14 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     aiSay('Analyse arrêtée.');
   });
   $('ai-undo').addEventListener('click', restoreUndo);
+  $('ai-car-go').addEventListener('click', () => {
+    if (ai.result && ai.result.slides.length && !state.slides.length) state.slides = ai.result.slides.map((s) => Object.assign({}, s));
+    state.carousel = true;
+    slideIdx = state.slides.length ? 1 : 0;
+    slidesChanged();
+    refreshAiOut();
+    screen.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+  });
   $('ai-dismiss').addEventListener('click', () => {
     ai.result = null;
     ai.undo = null;
