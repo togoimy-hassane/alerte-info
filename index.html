@@ -572,11 +572,34 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
 .screen.swipe canvas { touch-action: pan-y; }
 .slide-moves { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .sheet-imgs { display: flex; flex-direction: column; gap: 10px; }
+.toast {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: 50%;
+  z-index: 60;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(92vw, 520px);
+  padding: 11px 16px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--panel);
+  font: 600 14px/1.4 var(--font-body);
+  text-align: center;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+.iab { display: flex; align-items: flex-start; gap: 12px; margin: 0 0 16px; padding: 12px 14px; border: 1.5px solid var(--accent); border-radius: 6px; background: var(--panel); font: 600 14px/1.45 var(--font-body); }
+.iab p { flex: 1; margin: 0; }
 </style>
 </head>
 <body>
 
 <div class="wrap">
+  <div class="iab" id="iab" hidden>
+    <p id="iab-text">Tu es dans le navigateur d’une application&nbsp;: l’import de photos y marche mal. Ouvre la page dans Safari ou Chrome (menu ⋯, puis «&nbsp;Ouvrir dans le navigateur&nbsp;»).</p>
+    <button type="button" class="linkish" id="iab-close">Compris</button>
+  </div>
   <header class="top">
     <h1 class="mark">Générateur <span class="tag">Alerte Info.</span></h1>
     <p>Colle ton texte&nbsp;: l’assistant le résume, choisit parmi neuf modèles et remplit le visuel, ou tout un carrousel. Export en 1080&nbsp;px prêt à publier.</p>
@@ -1132,6 +1155,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   </div>
 </div>
 
+<div class="toast" id="toast" hidden aria-hidden="true"></div>
 <button type="button" class="mini" id="mini" hidden aria-label="Revenir à l’aperçu"><canvas id="mini-canvas" width="184" height="230" aria-hidden="true"></canvas></button>
 
 <script>
@@ -1895,25 +1919,63 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       }
     }
   }
+  function freeLayers() {
+    for (const L of layers.values()) { L.cv.width = 0; L.cv.height = 0; }
+    layers.clear();
+    scratch.width = 1;
+    scratch.height = 1;
+  }
+  function layerScale(c) {
+    try {
+      const t = typeof c.getTransform === 'function' ? c.getTransform() : null;
+      return t ? clamp(Math.max(Math.abs(t.a), Math.abs(t.d)) * 1.3, 0.12, 1) : 1;
+    } catch (e) {
+      return 1;
+    }
+  }
   function drawLayer(c, key, rect, o) {
     const filter = (o && o.filter) || 'none';
     const crop = (o && o.crop) || slots[key].crop;
-    const lw = Math.max(1, Math.round(rect.w));
-    const lh = Math.max(1, Math.round(rect.h));
+    const k = layerScale(c);
+    const lw = Math.max(1, Math.round(rect.w * k));
+    const lh = Math.max(1, Math.round(rect.h * k));
     const sizeKey = key + '|' + lw + 'x' + lh + '|' + filter + '|' + ((o && o.tag) || '');
     const src = sourceOf(key);
     const contentKey = [src ? src.id : 'sample', crop.zoom.toFixed(4), crop.fx.toFixed(4), crop.fy.toFixed(4), filter === 'duo' ? state.brand : ''].join('|');
     let L = layers.get(sizeKey);
-    if (!L) {
-      if (layers.size >= 16) layers.delete(layers.keys().next().value);
+    if (L) {
+      layers.delete(sizeKey);
+      layers.set(sizeKey, L);
+    } else {
+      if (layers.size >= 12) {
+        const oldKey = layers.keys().next().value;
+        const old = layers.get(oldKey);
+        old.cv.width = 0;
+        old.cv.height = 0;
+        layers.delete(oldKey);
+      }
       const cv = document.createElement('canvas');
       cv.width = lw;
       cv.height = lh;
       L = { cv, key: '' };
       layers.set(sizeKey, L);
     }
-    if (L.key !== contentKey) { paintLayer(L.cv, key, filter, crop); L.key = contentKey; }
-    c.drawImage(L.cv, rect.x, rect.y, rect.w, rect.h);
+    try {
+      if (L.key !== contentKey) { paintLayer(L.cv, key, filter, crop); L.key = contentKey; }
+      c.drawImage(L.cv, rect.x, rect.y, rect.w, rect.h);
+    } catch (e) {
+      /* mémoire des canvas saturée (iPhone ancien) : on vide le cache et on dessine la photo directement */
+      freeLayers();
+      if (src) {
+        const g = coverGeom(src.w, src.h, rect.w, rect.h, crop);
+        c.save();
+        c.beginPath();
+        c.rect(rect.x, rect.y, rect.w, rect.h);
+        c.clip();
+        c.drawImage(src.img, rect.x + g.ox, rect.y + g.oy, g.dw, g.dh);
+        c.restore();
+      }
+    }
     return src ? coverGeom(src.w, src.h, rect.w, rect.h, crop) : null;
   }
   function photoLayer(c, E, key, rect, filter) {
@@ -2903,7 +2965,14 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const n = slideCount();
     if (slideIdx > n - 1) slideIdx = n - 1;
     const reg = [];
-    const fit = drawSlideTo(ctx, slideIdx, 1, reg);
+    let fit = null;
+    try {
+      fit = drawSlideTo(ctx, slideIdx, 1, reg);
+    } catch (e) {
+      freeLayers();
+      reg.length = 0;
+      try { fit = drawSlideTo(ctx, slideIdx, 1, reg); } catch (e2) { say('L’aperçu n’a pas pu se dessiner. Recharge la page.'); }
+    }
     lastFit = fit || null;
     regions = reg;
     updateReadout(f, fit);
@@ -2950,17 +3019,25 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   let sideTimer = 0;
   function scheduleSide() {
     clearTimeout(sideTimer);
-    sideTimer = setTimeout(() => { renderThumbs(); renderStrip(); updateCaption(); refreshAiOut(); }, 320);
+    sideTimer = setTimeout(() => { renderThumbs(); renderStrip(); updateCaption(); refreshAiOut(); saveSlotMeta(); }, 320);
   }
   function changed() { persist(); schedule(); scheduleSide(); }
 
   /* ---------- messages ---------- */
   const statusEl = $('status');
   let statusTimer = 0;
+  const toastEl = $('toast');
+  let toastTimer = 0;
   function say(msg) {
     statusEl.textContent = msg;
     clearTimeout(statusTimer);
     statusTimer = setTimeout(() => { statusEl.textContent = ''; }, 6000);
+    clearTimeout(toastTimer);
+    const r = statusEl.getBoundingClientRect();
+    if (!msg || (r.bottom > 0 && r.top < window.innerHeight)) { toastEl.hidden = true; return; }
+    toastEl.textContent = msg;
+    toastEl.hidden = false;
+    toastTimer = setTimeout(() => { toastEl.hidden = true; }, 4500);
   }
 
   /* ---------- légende ---------- */
@@ -3220,9 +3297,141 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     p2: { input: 'photo2-input', name: 'photo2-name', clear: 'photo2-clear', empty: 'Photo d’exemple' },
     doc: { input: 'doc-input', name: 'doc-name', clear: 'doc-clear', empty: 'Document d’exemple' }
   };
-  function setSlot(key, img, name) {
+  /* Import robuste, pensé pour les iPhone anciens : on accepte une photo sans type déclaré
+     (HEIC, fichier venu de l'app Fichiers), on l'ouvre sans copie base64, on la réduit à
+     2560 px dès l'arrivée pour épargner la mémoire, et on la garde sur l'appareil. */
+  const IMG_EXT = /\.(jpe?g|jfif|png|gif|webp|heic|heif|avif|bmp|tiff?)$/i;
+  const looksImage = (f) => !!f && (/^image\//.test(f.type || '') || IMG_EXT.test(f.name || '') || !f.type || f.type === 'application/octet-stream');
+  function decodeFile(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => resolve({ img, url });
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+      img.src = url;
+    });
+  }
+  async function prepareImage(file, max) {
+    const first = await decodeFile(file);
+    const iw = first.img.naturalWidth;
+    const ih = first.img.naturalHeight;
+    if (!iw || !ih) { URL.revokeObjectURL(first.url); throw new Error('empty'); }
+    const s = Math.min(1, max / Math.max(iw, ih));
+    if (s === 1 && /^image\/(jpeg|png|webp)$/.test(file.type || '')) return { img: first.img, url: first.url, blob: file };
+    try {
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(iw * s));
+      cv.height = Math.max(1, Math.round(ih * s));
+      const c = cv.getContext('2d');
+      if (!c) throw new Error('canvas');
+      c.fillStyle = '#FFFFFF';
+      c.fillRect(0, 0, cv.width, cv.height);
+      c.imageSmoothingEnabled = true;
+      c.imageSmoothingQuality = 'high';
+      c.drawImage(first.img, 0, 0, cv.width, cv.height);
+      const blob = await new Promise((resolve) => cv.toBlob(resolve, 'image/jpeg', 0.9));
+      cv.width = 0;
+      cv.height = 0;
+      if (!blob) throw new Error('encode');
+      const out = await decodeFile(blob);
+      return { img: out.img, url: out.url, blob };
+    } finally {
+      URL.revokeObjectURL(first.url);
+    }
+  }
+
+  /* photos gardées sur l'appareil (IndexedDB) : elles reviennent si iOS recharge la page */
+  let idbP = null;
+  function idb() {
+    if (!idbP) {
+      idbP = new Promise((resolve) => {
+        try {
+          const req = indexedDB.open('generateur-alerte-info', 1);
+          req.onupgradeneeded = () => { try { req.result.createObjectStore('photos'); } catch (e) { /* déjà là */ } };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+          req.onblocked = () => resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    }
+    return idbP;
+  }
+  function idbRun(mode, fn) {
+    return idb().then((db) => new Promise((resolve) => {
+      if (!db) { resolve(null); return; }
+      try {
+        const tx = db.transaction('photos', mode);
+        const r = fn(tx.objectStore('photos'));
+        tx.oncomplete = () => resolve(r && r.readyState === 'done' ? r.result : null);
+        tx.onerror = () => resolve(null);
+        tx.onabort = () => resolve(null);
+      } catch (e) {
+        resolve(null);
+      }
+    }));
+  }
+  const lastMeta = {};
+  async function savePhoto(key, blob, name) {
+    try {
+      const buf = await blob.arrayBuffer();
+      const s = slots[key];
+      lastMeta[key] = JSON.stringify({ crop: s.crop, marks: s.marks || null });
+      await idbRun('readwrite', (st) => st.put({ buf, type: blob.type || 'image/jpeg', name, crop: s.crop, marks: s.marks || null }, key));
+    } catch (e) { /* la photo reste affichée, seulement pas gardée */ }
+  }
+  function dropPhoto(key) {
+    delete lastMeta[key];
+    idbRun('readwrite', (st) => st.delete(key));
+  }
+  function saveSlotMeta() {
+    for (const key of Object.keys(SLOT_UI)) {
+      const s = slots[key];
+      if (!s.img || !s.blob) continue;
+      const meta = JSON.stringify({ crop: s.crop, marks: s.marks || null });
+      if (lastMeta[key] === meta) continue;
+      lastMeta[key] = meta;
+      const crop = Object.assign({}, s.crop);
+      const marks = s.marks ? s.marks.slice() : null;
+      idbRun('readwrite', (st) => {
+        const r = st.get(key);
+        r.onsuccess = () => {
+          if (r.result) {
+            r.result.crop = crop;
+            r.result.marks = marks;
+            st.put(r.result, key);
+          }
+        };
+        return null;
+      });
+    }
+  }
+  async function restorePhotos() {
+    for (const key of Object.keys(SLOT_UI)) {
+      const rec = await idbRun('readonly', (st) => st.get(key));
+      if (!rec || !rec.buf || slots[key].img) continue;
+      try {
+        const blob = new Blob([rec.buf], { type: rec.type || 'image/jpeg' });
+        const r = await decodeFile(blob);
+        if (slots[key].img) continue;
+        setSlot(key, r.img, rec.name || 'Photo', blob, true);
+        if (rec.crop) slots[key].crop = Object.assign({}, slots[key].crop, rec.crop);
+        if (key === 'doc' && Array.isArray(rec.marks)) { slots.doc.marks = rec.marks; updateMarkCount(); }
+        lastMeta[key] = JSON.stringify({ crop: slots[key].crop, marks: slots[key].marks || null });
+        syncCrop();
+        schedule();
+        scheduleSide();
+      } catch (e) {
+        dropPhoto(key);
+      }
+    }
+  }
+
+  function setSlot(key, img, name, blob, restoring) {
     const s = slots[key];
     s.img = img;
+    s.blob = img ? blob || null : null;
     s.id = ++imgSeq;
     s.crop = key === 'doc' ? Object.assign({}, img ? DOC_CROP : DOC_SAMPLE_CROP) : { zoom: 1, fx: 0.5, fy: 0.5 };
     if (key === 'doc') {
@@ -3235,16 +3444,24 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     $(ui.clear).hidden = !img;
     if (img && availableTargets().indexOf(key) !== -1) setTarget(key);
     else if (key === cropTarget) syncCrop();
+    if (!restoring) {
+      if (img && s.blob) savePhoto(key, s.blob, name);
+      else dropPhoto(key);
+    }
     schedule();
     scheduleSide();
   }
   async function loadInto(key, file) {
-    if (!file || !/^image\//.test(file.type)) { say('Ce fichier n’est pas une image.'); return; }
+    if (!looksImage(file)) { say('Ce fichier n’est pas une image.'); return; }
+    say(key === 'doc' ? 'Chargement du document…' : 'Chargement de la photo…');
     try {
-      const img = await loadImage(await readAsDataURL(file));
-      setSlot(key, img, file.name || 'Image collée');
+      const r = await prepareImage(file, 2560);
+      setSlot(key, r.img, file.name || 'Image collée', r.blob);
+      say(key === 'doc' ? 'Document ajouté.' : 'Photo ajoutée.');
     } catch (e) {
-      say('Impossible de lire cette image. Essaie un JPG ou un PNG.');
+      say(/heic|heif/i.test((file.type || '') + ' ' + (file.name || ''))
+        ? 'Cette photo est en HEIC et ce navigateur ne l’ouvre pas. Sur iPhone : Réglages, Appareil photo, Formats, « Le plus compatible ».'
+        : 'Impossible de lire cette image. Essaie un JPG ou un PNG.');
     }
   }
   for (const key of Object.keys(SLOT_UI)) {
@@ -3321,9 +3538,10 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     scheduleSide();
   }
   async function loadAvatar(file) {
-    if (!file || !/^image\//.test(file.type)) { say('Choisis une image pour la photo de profil.'); return; }
+    if (!looksImage(file)) { say('Choisis une image pour la photo de profil.'); return; }
     try {
-      const img = await loadImage(await readAsDataURL(file));
+      const dec = await decodeFile(file);
+      const img = dec.img;
       const iw = img.naturalWidth || 400;
       const ih = img.naturalHeight || 400;
       const side = Math.min(iw, ih);
@@ -3338,6 +3556,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       c.imageSmoothingQuality = 'high';
       c.drawImage(img, sx, sy, side, side, 0, 0, out, out);
       setAvatar(cv.toDataURL('image/jpeg', 0.9));
+      URL.revokeObjectURL(dec.url);
+      cv.width = 0;
       persist();
       say('Photo de profil enregistrée sur cet appareil.');
     } catch (e) {
@@ -4259,9 +4479,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const photos = typed.filter((x) => x.type === 'photo').map((x) => pics[x.n - 1]);
     if (!typed.length && tpl === 'dossier') docs.push(pics[0]);
     let photo = false;
-    if (tpl === 'dossier' && docs[0] && slots.doc.img !== docs[0].img) setSlot('doc', docs[0].img, docs[0].name);
-    if (photos[0] && slots.p1.img !== photos[0].img) { setSlot('p1', photos[0].img, photos[0].name); photo = true; }
-    if ((tpl === 'duo' || tpl === 'dossier') && photos[1] && slots.p2.img !== photos[1].img) { setSlot('p2', photos[1].img, photos[1].name); photo = true; }
+    if (tpl === 'dossier' && docs[0] && slots.doc.img !== docs[0].img) setSlot('doc', docs[0].img, docs[0].name, docs[0].full);
+    if (photos[0] && slots.p1.img !== photos[0].img) { setSlot('p1', photos[0].img, photos[0].name, photos[0].full); photo = true; }
+    if ((tpl === 'duo' || tpl === 'dossier') && photos[1] && slots.p2.img !== photos[1].img) { setSlot('p2', photos[1].img, photos[1].name, photos[1].full); photo = true; }
     if (photo) { state.credit = ''; $('credit').value = ''; }
   }
   function takeUndo() {
@@ -4270,7 +4490,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     u.state.slides = state.slides.map((s) => Object.assign({}, s));
     for (const k of Object.keys(SLOT_UI)) {
       const s = slots[k];
-      u.slots[k] = { img: s.img, name: $(SLOT_UI[k].name).textContent, crop: Object.assign({}, s.crop), marks: s.marks ? s.marks.slice() : s.marks };
+      u.slots[k] = { img: s.img, blob: s.blob || null, name: $(SLOT_UI[k].name).textContent, crop: Object.assign({}, s.crop), marks: s.marks ? s.marks.slice() : s.marks };
     }
     return u;
   }
@@ -4282,7 +4502,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     slideIdx = u.slide || 0;
     for (const k of Object.keys(u.slots)) {
       const s = u.slots[k];
-      if (slots[k].img !== s.img) setSlot(k, s.img, s.name);
+      if (slots[k].img !== s.img) setSlot(k, s.img, s.name, s.blob);
       slots[k].crop = Object.assign({}, s.crop);
       if (k === 'doc') slots.doc.marks = s.marks ? s.marks.slice() : s.marks;
     }
@@ -4868,15 +5088,14 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     return new Promise((resolve, reject) => cv.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.88));
   }
   async function addPics(files) {
-    const list = Array.prototype.filter.call(files || [], (f) => /^image\//.test(f.type));
+    const list = Array.prototype.filter.call(files || [], looksImage);
     if (!list.length) { aiSay('Choisis une image, par exemple une capture d’écran.'); return; }
     for (const f of list) {
       if (ai.pics.length >= ai.maxPics) { aiSay(ai.maxPics + ' captures au maximum.'); break; }
       try {
-        const url = await readAsDataURL(f);
-        const img = await loadImage(url);
-        const blob = await shrink(img, 1568);
-        ai.pics.push({ img, url, blob, b64: '', name: f.name || 'Capture collée' });
+        const r = await prepareImage(f, 2560);
+        const blob = await shrink(r.img, 1568);
+        ai.pics.push({ img: r.img, url: r.url, full: r.blob, blob, b64: '', name: f.name || 'Capture collée' });
       } catch (e) {
         aiSay('Cette image n’a pas pu être lue. Essaie un JPG ou un PNG.');
       }
@@ -5273,6 +5492,14 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   initAssistant();
   if (state.logo) setLogo(state.logo);
   if (state.avatar) setAvatar(state.avatar);
+  restorePhotos();
+  const UA = navigator.userAgent || '';
+  if (STANDALONE && /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|Snapchat|musical_ly|TikTok|BytedanceWebview|LinkedInApp|Line\//i.test(UA)) {
+    const app = /Instagram/i.test(UA) ? 'd’Instagram' : /Messenger/i.test(UA) ? 'de Messenger' : /FBAN|FBAV|FB_IAB|FBIOS/i.test(UA) ? 'de Facebook' : 'd’une application';
+    $('iab-text').textContent = 'Tu es dans le navigateur ' + app + ' : l’import de photos y marche mal. Ouvre la page dans Safari ou Chrome (menu ⋯, puis «' + NB + 'Ouvrir dans le navigateur' + NB + '»).';
+    $('iab').hidden = false;
+  }
+  $('iab-close').addEventListener('click', () => { $('iab').hidden = true; });
   if (location.hash.indexOf('#kit=') === 0) {
     const ok = applyKitCode(decodeURIComponent(location.hash.slice(5)));
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* adresse inchangée */ }
