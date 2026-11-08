@@ -355,7 +355,8 @@ textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px;
 .seg .f-condensed { font: 400 15px/1 var(--font-cond); letter-spacing: 0.02em; }
 .seg .f-serif { font: 700 16px/1 var(--font-serif); }
 
-.tpls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 8px; }
+.tpls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 8px; }
+@media (min-width: 560px) { .tpls { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 .tpl { position: relative; display: flex; flex-direction: column; gap: 7px; min-width: 0; cursor: pointer; }
 .tpl input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
 .tpl canvas { display: block; width: 100%; height: auto; border-radius: 3px; background: var(--well); box-shadow: 0 0 0 1px var(--line); }
@@ -578,7 +579,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
 <div class="wrap">
   <header class="top">
     <h1 class="mark">Générateur <span class="tag">Alerte Info.</span></h1>
-    <p>Colle ton texte&nbsp;: l’assistant le résume, choisit parmi huit modèles et remplit le visuel, ou tout un carrousel. Export en 1080&nbsp;px prêt à publier.</p>
+    <p>Colle ton texte&nbsp;: l’assistant le résume, choisit parmi neuf modèles et remplit le visuel, ou tout un carrousel. Export en 1080&nbsp;px prêt à publier.</p>
   </header>
 
   <main class="desk">
@@ -747,6 +748,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
           <label class="tpl"><input type="radio" name="tpl" id="tpl-surligne" value="surligne"><canvas data-tpl="surligne" width="216" height="270" aria-hidden="true"></canvas><span>Surligné</span></label>
           <label class="tpl"><input type="radio" name="tpl" id="tpl-duo" value="duo"><canvas data-tpl="duo" width="216" height="270" aria-hidden="true"></canvas><span>Duo</span></label>
           <label class="tpl"><input type="radio" name="tpl" id="tpl-dossier" value="dossier"><canvas data-tpl="dossier" width="216" height="270" aria-hidden="true"></canvas><span>Dossier</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-post" value="post"><canvas data-tpl="post" width="216" height="270" aria-hidden="true"></canvas><span>Post</span></label>
         </div>
         <p class="tpl-desc" id="tpl-desc"></p>
       </section>
@@ -754,7 +756,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       <section class="group" aria-labelledby="g-post">
         <h2 class="eyebrow" id="g-post">Contenu</h2>
 
-        <div class="field">
+        <div class="field" data-tpl="alerte bandeau une citation chiffre surligne duo dossier">
           <span class="label" id="photo-label">Photo</span>
           <div class="file-row">
             <input type="file" id="photo-input" class="sr-only" accept="image/*" aria-labelledby="photo-label">
@@ -766,6 +768,45 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
             <button type="button" class="linkish" id="photo-clear" hidden>Retirer</button>
           </div>
           <p class="hint only-fine">Tu peux aussi déposer une image sur l’aperçu, ou la coller avec Ctrl+V.</p>
+        </div>
+
+        <div class="field" data-tpl="post">
+          <span class="label" id="avatar-label">Photo de profil</span>
+          <div class="file-row">
+            <input type="file" id="avatar-input" class="sr-only" accept="image/*" aria-labelledby="avatar-label">
+            <label class="btn" for="avatar-input">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13V3.5M6 7.5l4-4 4 4M3.5 12.5v3a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3"/></svg>
+              Importer la photo de profil
+            </label>
+            <button type="button" class="linkish" id="avatar-clear" hidden>Retirer</button>
+          </div>
+          <div class="ranges" id="avatar-crop" hidden>
+            <label class="range" for="av-zoom"><span>Zoom</span><input type="range" id="av-zoom" min="100" max="300" step="1" value="140"><output id="av-zoom-out" for="av-zoom">140 %</output></label>
+            <label class="range" for="av-y"><span>Hauteur</span><input type="range" id="av-y" min="0" max="100" step="1" value="32"><output id="av-y-out" for="av-y">32 %</output></label>
+          </div>
+          <p class="hint">Gardée sur cet appareil pour les prochains posts. Règle le zoom pour que le visage remplisse le rond.</p>
+        </div>
+
+        <div class="two" data-tpl="post">
+          <div class="field">
+            <label class="label" for="post-name">Nom affiché</label>
+            <input type="text" id="post-name" maxlength="50" autocomplete="off">
+          </div>
+          <div class="field">
+            <label class="label" for="post-handle">Identifiant <small>facultatif</small></label>
+            <input type="text" id="post-handle" maxlength="40" autocomplete="off" spellcheck="false" placeholder="@identifiant">
+          </div>
+        </div>
+        <p class="hint" data-tpl="post">Vides, ils reprennent le nom et la signature de l’identité du média.</p>
+
+        <label class="toggle" for="post-verified" data-tpl="post"><input type="checkbox" id="post-verified">Badge certifié <small>seulement si le compte l’est vraiment</small></label>
+
+        <div class="field" data-tpl="post">
+          <span class="label" id="pt-label">Fond du post</span>
+          <div class="seg" role="radiogroup" aria-labelledby="pt-label">
+            <label><input type="radio" name="post-theme" id="pt-light" value="light"><span>Clair</span></label>
+            <label><input type="radio" name="post-theme" id="pt-dark" value="dark"><span>Sombre</span></label>
+          </div>
         </div>
 
         <div class="field" data-tpl="duo dossier">
@@ -935,7 +976,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         </div>
       </section>
 
-      <section class="group" aria-labelledby="g-photo">
+      <section class="group" aria-labelledby="g-photo" data-tpl="alerte bandeau une citation chiffre surligne duo dossier">
         <h2 class="eyebrow" id="g-photo">Image</h2>
         <div class="field" id="target-field" hidden>
           <span class="label" id="target-label">Image à régler</span>
@@ -1127,7 +1168,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     chiffre:  { font: 'grotesk', desc: 'Un nombre clé mis en avant, avec son explication.', draw: drawChiffre },
     surligne: { font: 'grotesk', desc: 'Texte posé dans des boîtes, très lisible sur mobile.', draw: drawSurligne },
     duo:      { font: 'grotesk', desc: 'Deux photos côte à côte avec leurs noms, pour relier ou opposer deux personnes.', draw: drawDuo },
-    dossier:  { font: 'grotesk', desc: 'Deux photos, une citation et un document à l’appui, pour les sujets qui demandent des preuves.', draw: drawDossier }
+    dossier:  { font: 'grotesk', desc: 'Deux photos, une citation et un document à l’appui, pour les sujets qui demandent des preuves.', draw: drawDossier },
+    post:     { font: 'grotesk', desc: 'Ta déclaration en format publication : photo de profil, nom, identifiant et ton texte, comme sur les réseaux.', draw: drawPost }
   };
   const famFor = (tpl) => FAM[state.font === 'auto' ? TPL[tpl].font : state.font];
   const badgeFam = (fam) => (fam === FAM.condensed ? BADGE_COND : SANS(800));
@@ -1184,9 +1226,16 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     carousel: false,
     slides: [],
     endSlide: true,
-    endText: 'Abonnez-vous à la page pour ne rien *manquer* de l’actualité.'
+    endText: 'Abonnez-vous à la page pour ne rien *manquer* de l’actualité.',
+    postName: '',
+    postHandle: '',
+    postVerified: false,
+    postTheme: 'light',
+    avatar: '',
+    avatarZoom: 140,
+    avatarY: 32
   };
-  const KIT_KEYS = ['name', 'handle', 'brand', 'alert', 'hl', 'font', 'textFx', 'badgeStyle', 'panel', 'boxes', 'format', 'frenchTypo', 'endText'];
+  const KIT_KEYS = ['name', 'handle', 'brand', 'alert', 'hl', 'font', 'textFx', 'badgeStyle', 'panel', 'boxes', 'format', 'frenchTypo', 'endText', 'postName', 'postHandle', 'postVerified', 'postTheme'];
   const SLIDE_KINDS = ['point', 'quote', 'figure'];
   function cleanSlides(v) {
     if (!Array.isArray(v)) return [];
@@ -1207,7 +1256,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     filter: ['none', 'bw', 'duo', 'vivid'],
     docMode: ['both', 'zoom'],
     markKind: ['mark', 'frame'],
-    captionMode: ['auto', 'ai']
+    captionMode: ['auto', 'ai'],
+    postTheme: ['light', 'dark']
   };
   const COLOR_KEYS = ['brand', 'alert', 'hl'];
   const MAX_LEN = { aiText: 12000, aiCaption: 4000 };
@@ -1227,9 +1277,10 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       if (typeof v !== typeof DEFAULTS[k]) continue;
       if (ENUMS[k] && ENUMS[k].indexOf(v) === -1) continue;
       if (COLOR_KEYS.indexOf(k) !== -1 && !/^#[0-9a-f]{6}$/i.test(v)) continue;
-      if (k === 'shade') v = clamp(Math.round(v) || 0, 0, 100);
+      if (k === 'shade' || k === 'avatarY') v = clamp(Math.round(v) || 0, 0, 100);
+      if (k === 'avatarZoom') v = clamp(Math.round(v) || 140, 100, 300);
       if (k === 'slides') v = cleanSlides(v);
-      else if (k === 'logo') { if (v && v.indexOf('data:image/') !== 0) continue; }
+      else if (k === 'logo' || k === 'avatar') { if (v && v.indexOf('data:image/') !== 0) continue; }
       else if (typeof v === 'string') v = v.slice(0, MAX_LEN[k] || 600);
       out[k] = v;
     }
@@ -1260,7 +1311,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       try {
         localStorage.setItem(KEY, JSON.stringify(state));
       } catch (e) {
-        try { localStorage.setItem(KEY, JSON.stringify(Object.assign({}, state, { logo: '' }))); } catch (e2) { /* stockage indisponible */ }
+        try { localStorage.setItem(KEY, JSON.stringify(Object.assign({}, state, { logo: '' }))); } catch (e2) {
+          try { localStorage.setItem(KEY, JSON.stringify(Object.assign({}, state, { logo: '', avatar: '' }))); } catch (e3) { /* stockage indisponible */ }
+        }
       }
     }, 250);
   }
@@ -1357,10 +1410,13 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     if (cur.length) lines.push({ words: cur, w: cw });
     return lines;
   }
-  function wrapAll(c, paras, maxW, pretty) {
+  function wrapAll(c, paras, maxW, pretty, blank) {
     const space = mw(c, ' ');
     const out = [];
+    let gap = false;
     for (const words of paras) {
+      if (!words.length) { if (blank && out.length) gap = true; continue; }
+      if (gap) { out.push({ words: [], w: 0 }); gap = false; }
       let lines = wrapPara(c, words, maxW, space);
       if (pretty && lines.length > 1) {
         const n = lines.length;
@@ -1380,7 +1436,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   let fontEpoch = 0;
   const FIT_CACHE = new Map();
   function fitText(c, text, o) {
-    const key = [text, o.fam.family, o.weight || o.fam.weight, o.italic ? 1 : 0, o.raw ? 1 : 0, Math.round(o.max), Math.round(o.min),
+    const key = [text, o.fam.family, o.weight || o.fam.weight, o.italic ? 1 : 0, o.raw ? 1 : 0, o.blank ? 1 : 0, Math.round(o.max), Math.round(o.min),
       Math.round(o.maxW), Math.round(o.maxH), o.lh, fontEpoch, state.frenchTypo ? 1 : 0].join('|');
     const hit = FIT_CACHE.get(key);
     if (hit) return hit;
@@ -1389,12 +1445,12 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     let overflow = true;
     for (let p = o.max; p >= o.min; p -= 2) {
       c.font = fontOf(o.fam, p, o);
-      const lines = wrapAll(c, paras, o.maxW, false);
+      const lines = wrapAll(c, paras, o.maxW, false, o.blank);
       const widest = lines.reduce((m, l) => Math.max(m, l.w), 0);
       if (lines.length * p * o.lh <= o.maxH && widest <= o.maxW) { px = p; overflow = false; break; }
     }
     c.font = fontOf(o.fam, px, o);
-    const res = { px, overflow, font: c.font, lh: px * o.lh, lines: wrapAll(c, paras, o.maxW, true) };
+    const res = { px, overflow, font: c.font, lh: px * o.lh, lines: wrapAll(c, paras, o.maxW, true, o.blank) };
     if (FIT_CACHE.size > 400) FIT_CACHE.clear();
     FIT_CACHE.set(key, res);
     return res;
@@ -1650,6 +1706,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   };
   let imgSeq = 0;
   let logoImg = null;
+  let avatarImg = null;
   let tempMark = null;
   const layers = new Map();
   const scratch = document.createElement('canvas');
@@ -2521,6 +2578,119 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   const screen = $('screen');
   let regions = [];
 
+  /* ---------- modèle Post : une déclaration en format publication ---------- */
+  const PM = 96;
+  function postColors() {
+    return state.postTheme === 'dark'
+      ? { bg: '#000000', fg: '#E7E9EA', muted: '#71767B', ring: 'rgba(255,255,255,0.14)', rule: 'rgba(255,255,255,0.16)', kick: state.hl, hl: state.hl }
+      : { bg: '#FFFFFF', fg: '#0F1419', muted: '#536471', ring: 'rgba(15,20,25,0.1)', rule: 'rgba(15,20,25,0.12)', kick: state.alert, hl: state.alert };
+  }
+  const mediaName = () => state.name.replace(/\s*\n\s*/g, ' ').trim();
+  const postName = () => typo(state.postName.trim() || mediaName());
+  function postHandle() {
+    let h = state.postHandle.trim() || state.handle.trim();
+    if (h && !/^@/.test(h) && !/[./\s]/.test(h)) h = '@' + h;
+    return h;
+  }
+  function drawVerified(c, cx, cy, r) {
+    c.save();
+    c.fillStyle = '#1D9BF0';
+    c.beginPath();
+    for (let i = 0; i <= 96; i++) {
+      const a = (i / 96) * Math.PI * 2;
+      const rr = r * (0.9 + 0.1 * Math.cos(a * 8));
+      const x = cx + rr * Math.cos(a);
+      const y = cy + rr * Math.sin(a);
+      if (i) c.lineTo(x, y); else c.moveTo(x, y);
+    }
+    c.closePath();
+    c.fill();
+    c.strokeStyle = '#FFFFFF';
+    c.lineWidth = r * 0.24;
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    c.beginPath();
+    c.moveTo(cx - r * 0.4, cy + r * 0.02);
+    c.lineTo(cx - r * 0.1, cy + r * 0.32);
+    c.lineTo(cx + r * 0.42, cy - r * 0.3);
+    c.stroke();
+    c.restore();
+  }
+  function drawAvatar(c, x, y, d, P) {
+    c.save();
+    c.beginPath();
+    c.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
+    c.closePath();
+    c.clip();
+    if (avatarImg) {
+      const iw = avatarImg.naturalWidth || d;
+      const ih = avatarImg.naturalHeight || d;
+      const s = Math.max(d / iw, d / ih) * (state.avatarZoom / 100);
+      const dw = iw * s;
+      const dh = ih * s;
+      const ox = clamp(x + d / 2 - dw / 2, x + d - dw, x);
+      const oy = clamp(y + d / 2 - dh * (state.avatarY / 100), y + d - dh, y);
+      c.drawImage(avatarImg, ox, oy, dw, dh);
+    } else {
+      c.fillStyle = state.brand;
+      c.fillRect(x, y, d, d);
+      const ini = postName().split(/\s+/).filter((w) => /^\p{L}/u.test(w)).slice(0, 2).map((w) => graphemes(w)[0].toLocaleUpperCase('fr-FR')).join('');
+      const px = Math.round(d * 0.38);
+      c.font = fontOf(SANS(800), px);
+      c.textAlign = 'center';
+      c.fillStyle = '#FFFFFF';
+      c.fillText(ini || '?', x + d / 2, y + d / 2 + capH(c, px) / 2);
+    }
+    c.restore();
+    c.save();
+    c.strokeStyle = P.ring;
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(x + d / 2, y + d / 2, d / 2 - 1, 0, Math.PI * 2);
+    c.stroke();
+    c.restore();
+  }
+  function drawPost(c, E) {
+    const { W, H, f } = E;
+    const P = postColors();
+    c.fillStyle = P.bg;
+    c.fillRect(0, 0, W, H);
+    const name = postName();
+    const handle = postHandle();
+    const own = !state.postName.trim() || state.postName.trim() === mediaName();
+    const d = 124;
+    const nameX = PM + d + 30;
+    const meta = metaText();
+    const top = f.top + 40;
+    const bottom = H - f.bottom - (own ? 20 : 90);
+    const gapY = 52;
+    const metaH = meta ? 70 : 0;
+    const maxW = W - 2 * PM;
+    const fit = fitText(c, state.title, { fam: FAM.grotesk, weight: 500, max: E.key === 'story' ? 64 : 58, min: 30, maxW, maxH: Math.max(80, bottom - top - d - gapY - metaH), lh: 1.34, blank: true });
+    const textH = textBlockH(c, fit);
+    let y = Math.round(top + Math.max(0, (bottom - top - (d + gapY + textH + metaH)) / 2));
+    drawAvatar(c, PM, y, d, P);
+    c.save();
+    c.font = fontOf(SANS(800), 42);
+    c.textAlign = 'left';
+    c.fillStyle = P.fg;
+    const cap = capH(c, 42);
+    const nm = fitLine(c, name, W - PM - nameX - (state.postVerified ? 56 : 0));
+    const nameBase = Math.round(handle ? y + 52 : y + d / 2 + cap / 2);
+    c.fillText(nm, nameX, nameBase);
+    const nw = mw(c, nm);
+    c.restore();
+    if (state.postVerified && nm) drawVerified(c, nameX + nw + 14 + 19, nameBase - cap / 2, 19);
+    if (handle) drawSmall(c, E, handle, nameX, y + 100, { size: 34, weight: 500, color: P.muted, maxW: W - PM - nameX });
+    y += d + gapY;
+    c.font = fit.font;
+    drawRich(c, E, fit, PM, y + capH(c, fit.px), { color: P.fg, hl: P.hl, fx: 'none' });
+    y += textH;
+    if (meta) drawSmall(c, E, meta, PM, y + 58, { size: 26, weight: 500, color: P.muted, maxW });
+    if (!own) drawBrand(c, E, PM, 0, { mode: 'plain', color: P.fg, size: 28, maxW: W * 0.4, h: 44, baseline: H - f.bottom });
+    return fit;
+  }
+
   /* ---------- carrousel : pages après la couverture ---------- */
   const slideCount = () => (state.carousel ? 1 + state.slides.length + (state.endSlide ? 1 : 0) : 1);
   function slideOf(i) {
@@ -2561,10 +2731,10 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     c.restore();
     return { top: f.top + 56 + 64, bot: H - f.bottom - 70 };
   }
-  const bodyColor = () => (state.panel === 'light' ? '#2A2C33' : 'rgba(255,255,255,0.9)');
+  const bodyColor = () => ((state.tpl === 'post' ? state.postTheme : state.panel) === 'light' ? '#2A2C33' : 'rgba(255,255,255,0.9)');
   function drawInner(c, E, s, i, n) {
     const { W, H, f } = E;
-    const P = panelColors(true);
+    const P = state.tpl === 'post' ? postColors() : panelColors(true);
     const Z = slideFrame(c, E, i, n, P.bg, P.fg, P.muted);
     const maxW = W - 2 * M;
     const areaH = Z.bot - Z.top;
@@ -2865,10 +3035,11 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   /* ---------- contrôles ---------- */
   const TEXT_FIELDS = {
     badge: 'badge', kicker: 'kicker', title: 'title', figure: 'figure', author: 'author', role: 'role', source: 'source', credit: 'credit',
-    name: 'name', handle: 'handle', cap1: 'cap1', cap2: 'cap2', quote: 'quote', context: 'context', 'doc-title': 'docTitle', points: 'points'
+    name: 'name', handle: 'handle', cap1: 'cap1', cap2: 'cap2', quote: 'quote', context: 'context', 'doc-title': 'docTitle', points: 'points',
+    'post-name': 'postName', 'post-handle': 'postHandle'
   };
-  const CHECKS = { 'show-date': 'showDate', french: 'frenchTypo', 'guides-on': 'guides', 'ai-ar': 'aiAr' };
-  const RADIOS = { tpl: 'tpl', format: 'format', font: 'font', 'text-fx': 'textFx', 'badge-style': 'badgeStyle', panel: 'panel', boxes: 'boxes', filter: 'filter', 'doc-mode': 'docMode', 'mark-kind': 'markKind', 'caption-mode': 'captionMode' };
+  const CHECKS = { 'show-date': 'showDate', french: 'frenchTypo', 'guides-on': 'guides', 'ai-ar': 'aiAr', 'post-verified': 'postVerified' };
+  const RADIOS = { tpl: 'tpl', format: 'format', font: 'font', 'text-fx': 'textFx', 'badge-style': 'badgeStyle', panel: 'panel', boxes: 'boxes', filter: 'filter', 'doc-mode': 'docMode', 'mark-kind': 'markKind', 'caption-mode': 'captionMode', 'post-theme': 'postTheme' };
   const COLORS = { 'c-brand': 'brand', 'c-alert': 'alert', 'c-hl': 'hl' };
 
   function updateCount() {
@@ -2933,10 +3104,10 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   function applyTpl() {
     for (const el of document.querySelectorAll('[data-tpl]')) {
       if (el.tagName === 'CANVAS') continue;
-      el.hidden = el.dataset.tpl.split(' ').indexOf(state.tpl) === -1 && !(el.dataset.car && state.carousel);
+      el.hidden = el.dataset.tpl.split(' ').indexOf(state.tpl) === -1 && !(el.dataset.car && state.carousel && state.tpl !== 'post');
     }
     $('panel-note').textContent = state.carousel ? 'fond des pages du carrousel' : '';
-    $('title-label').textContent = state.tpl === 'citation' ? 'Citation' : state.tpl === 'chiffre' ? 'Explication' : 'Titre';
+    $('title-label').textContent = state.tpl === 'citation' ? 'Citation' : state.tpl === 'chiffre' ? 'Explication' : state.tpl === 'post' ? 'Texte du post' : 'Titre';
     $('photo-label').textContent = state.tpl === 'duo' || state.tpl === 'dossier' ? 'Photo 1' : 'Photo';
     $('tpl-desc').textContent = TPL[state.tpl].desc;
     const targets = availableTargets();
@@ -3124,6 +3295,62 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   });
   $('logo-clear').addEventListener('click', () => { setLogo(''); persist(); });
 
+  /* photo de profil du modèle Post : carrée, gardée sur l'appareil */
+  function syncAvatarCrop() {
+    $('avatar-crop').hidden = !state.avatar;
+    $('av-zoom').value = state.avatarZoom;
+    $('av-y').value = state.avatarY;
+    $('av-zoom-out').textContent = state.avatarZoom + NNB + '%';
+    $('av-y-out').textContent = state.avatarY + NNB + '%';
+  }
+  $('av-zoom').addEventListener('input', () => { state.avatarZoom = Number($('av-zoom').value); syncAvatarCrop(); changed(); });
+  $('av-y').addEventListener('input', () => { state.avatarY = Number($('av-y').value); syncAvatarCrop(); changed(); });
+  function setAvatar(dataUrl) {
+    state.avatar = dataUrl || '';
+    $('avatar-clear').hidden = !state.avatar;
+    syncAvatarCrop();
+    avatarImg = null;
+    if (state.avatar) {
+      loadImage(state.avatar).then((img) => { avatarImg = img; schedule(); scheduleSide(); }, () => {
+        state.avatar = '';
+        $('avatar-clear').hidden = true;
+        schedule();
+      });
+    }
+    schedule();
+    scheduleSide();
+  }
+  async function loadAvatar(file) {
+    if (!file || !/^image\//.test(file.type)) { say('Choisis une image pour la photo de profil.'); return; }
+    try {
+      const img = await loadImage(await readAsDataURL(file));
+      const iw = img.naturalWidth || 400;
+      const ih = img.naturalHeight || 400;
+      const side = Math.min(iw, ih);
+      const sx = (iw - side) / 2;
+      const sy = ih > iw ? (ih - side) * 0.2 : 0;
+      const out = Math.min(480, side);
+      const cv = document.createElement('canvas');
+      cv.width = out;
+      cv.height = out;
+      const c = cv.getContext('2d');
+      c.imageSmoothingEnabled = true;
+      c.imageSmoothingQuality = 'high';
+      c.drawImage(img, sx, sy, side, side, 0, 0, out, out);
+      setAvatar(cv.toDataURL('image/jpeg', 0.9));
+      persist();
+      say('Photo de profil enregistrée sur cet appareil.');
+    } catch (e) {
+      say('Cette photo n’a pas pu être lue. Essaie un JPG ou un PNG.');
+    }
+  }
+  $('avatar-input').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) loadAvatar(f);
+    e.target.value = '';
+  });
+  $('avatar-clear').addEventListener('click', () => { setAvatar(''); persist(); });
+
   /* ---------- aperçu : glisser, recadrer, surligner ---------- */
   let drag = null;
   let marking = false;
@@ -3283,6 +3510,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     if (inAssistant(e.target)) { assistantPics(e.dataTransfer.files); return; }
     const f = Array.prototype.find.call(e.dataTransfer.files, (x) => /^image\//.test(x.type));
     if (!f) { say('Dépose une image, par exemple un JPG ou un PNG.'); return; }
+    if (state.tpl === 'post') { loadAvatar(f); return; }
     let key = pasteTarget();
     const rect = canvas.getBoundingClientRect();
     if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
@@ -3297,6 +3525,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     if (!f) return;
     e.preventDefault();
     if (inAssistant(document.activeElement)) assistantPics(files);
+    else if (state.tpl === 'post') loadAvatar(f);
     else loadInto(pasteTarget(), f);
   });
 
@@ -3858,7 +4087,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
      1. Claude dans l'artefact (capacité sample, sur le compte Claude de la personne) ;
      2. Claude par l'API avec une clé gardée sur l'appareil (site GitHub) ;
      3. le mode simple, sans IA, qui découpe le texte avec des règles. */
-  const TPL_NAMES = { alerte: 'Alerte', bandeau: 'Bandeau', une: 'Une', citation: 'Citation', chiffre: 'Chiffre', surligne: 'Surligné', duo: 'Duo', dossier: 'Dossier' };
+  const TPL_NAMES = { alerte: 'Alerte', bandeau: 'Bandeau', une: 'Une', citation: 'Citation', chiffre: 'Chiffre', surligne: 'Surligné', duo: 'Duo', dossier: 'Dossier', post: 'Post' };
   const BADGES = ['Alerte Info.', 'Dernière minute.', 'Urgent.', 'Exclusif.', 'Officiel.', 'Décryptage.'];
   const AI_CONF_KEY = 'generateur-alerte-info:ia';
   const AI_LAST_KEY = 'generateur-alerte-info:ia-dernier';
@@ -3914,10 +4143,11 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const k = (x) => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
     return BADGES.find((b) => k(b) === k(s)) || clip(s, 24);
   }
-  const famOf = (t) => (t === 'citation' ? 'q' : t === 'chiffre' ? 'n' : 'h');
+  const famOf = (t) => (t === 'citation' ? 'q' : t === 'chiffre' ? 'n' : t === 'post' ? 'p' : 'h');
   function feasible(R, t) {
     if (t === 'citation') return !!(R.quote.text && R.quote.author);
     if (t === 'chiffre') return !!R.figure.value;
+    if (t === 'post') return !!R.post.text;
     return !!TPL[t];
   }
   function normalizeResult(raw, engine) {
@@ -3939,6 +4169,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       context: oneLine(o.contexte, 180),
       quote: { text: unquote(oneLine(q.texte, 260)), short: unquote(oneLine(q.courte, 80)), author: oneLine(q.auteur, 40), role: oneLine(q.fonction, 60) },
       figure: { value: oneLine(fg.valeur, 12), text: oneLine(fg.explication, 140) },
+      post: { text: block(obj(o.post).texte, 800) },
       people: arr(o.personnes).map(obj).map((p) => ({ name: oneLine(p.nom, 40), role: oneLine(p.fonction, 60) })).filter((p) => p.name).slice(0, 2),
       doc: { title: oneLine(d.titre, 60), points: arr(d.points).map((p) => stars(oneLine(p, 70))).filter((p) => plain(p).trim()).slice(0, 4) },
       source: oneLine(o.source, 60),
@@ -3984,6 +4215,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   function titleFor(R, tpl, i) {
     if (tpl === 'citation') return R.quote.text;
     if (tpl === 'chiffre') return R.figure.text || plain(R.titles[0] || '');
+    if (tpl === 'post') return R.post.text || plain(R.titles[0] || '');
     return R.titles[i || 0] || R.titles[0] || '';
   }
   function applyResult(R) {
@@ -4130,6 +4362,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     chiffre: strict({ valeur: STR, explication: STR }),
     personnes: { type: 'array', items: strict({ nom: STR, fonction: STR }) },
     document: strict({ titre: STR, points: { type: 'array', items: STR } }),
+    post: strict({ texte: STR }),
     source: STR,
     images: { type: 'array', items: strict({ numero: { type: 'integer' }, type: { type: 'string', enum: ['photo', 'document', 'capture'] } }) },
     photos_a_trouver: { type: 'array', items: STR },
@@ -4146,6 +4379,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     chiffre: { valeur: '', explication: '' },
     personnes: [{ nom: '…', fonction: '…' }],
     document: { titre: '', points: [] },
+    post: { texte: '' },
     source: '', images: [], photos_a_trouver: ['…'], a_verifier: ['…'],
     carrousel: [{ genre: 'point', titre: '…', texte: '…' }],
     legende: '…', legende_ar: ''
@@ -4174,6 +4408,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       '- "alerte" : info importante portée par une photo forte. C’est le choix par défaut.',
       '- "une" : sujet de fond, analyse, portrait.',
       '- "surligne" : annonce ou explication qui se lit sans photo marquante.',
+      '- "post" : le texte est une déclaration de l’auteur de la page lui-même, écrite à la première personne (son avis, un message à ses abonnés), à montrer comme une publication de réseau social.',
       'Propose aussi 2 autres modèles qui conviendraient (alternatives) et explique ton choix en une phrase (raison).',
       '',
       'Champs',
@@ -4186,6 +4421,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       '- chiffre : valeur telle qu’elle s’affiche, 12 caractères au plus ("85 %", "12 milliards", "300"), et explication de 90 caractères au plus.',
       '- personnes : jusqu’à 2 personnes centrales, avec nom (40 caractères au plus) et fonction courte.',
       '- document : si un document est cité ou joint, titre court avec sa date ("Décret n° 123 · 5 mars 2025", 60 caractères au plus) et jusqu’à 3 points clés au format "*Art. 3* · Nomination du directeur", 60 caractères au plus chacun.',
+      '- post : texte (la déclaration telle qu’elle est écrite, paragraphes compris, en corrigeant seulement les fautes évidentes ; au-delà de 600 caractères, garde les passages les plus forts sans réécrire les phrases). Vide si ce n’est pas une déclaration de l’auteur de la page.',
       '- source : d’où vient l’info si le texte le dit (média, institution, communiqué), sinon "".',
       '- images : ' + (n ? 'pour chaque image jointe, dans l’ordre, son numero et son type : "photo" (à mettre sur le visuel), "document" (page officielle à montrer) ou "capture" (texte à lire seulement).' : '[] (aucune image jointe).'),
       '- photos_a_trouver : 1 ou 2 photos à ajouter au visuel, par exemple "Portrait officiel du ministre de la Santé".',
@@ -4508,15 +4744,28 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const duoLike = names.length >= 2 && /(?:remplace|succède|à la place de|en remplacement|face à|face-à-face|reçu par|a reçu|rencontre|s[’']est entretenu|limog)/i.test(flat);
     const len = flat.length;
     const quoteEarly = !!quote && sents.slice(0, 3).some((s) => s.indexOf(quote.text.slice(0, 20)) !== -1);
+    const unquoted = flat.replace(/[«“"][^«»“”"]*[»”"]/g, ' ');
+    const firstPerson = (unquoted.match(/(?:^|[^\p{L}])(?:je|me|moi|mon|ma|mes|nous|notre|nos)(?!\p{L})/giu) || []).length
+      + (unquoted.match(/(?:^|[^\p{L}])[jm]['’](?=\p{L})/giu) || []).length;
+    let postText = '';
+    if (firstPerson >= 2) {
+      postText = body.join('\n\n');
+      if (postText.length > 600) {
+        const cutAt = Math.max(postText.lastIndexOf('. ', 600), postText.lastIndexOf('.\n', 600));
+        postText = cutAt > 250 ? postText.slice(0, cutAt + 1) : clip(postText, 600) + '…';
+      }
+    }
     let tpl = 'alerte';
     let reason = 'Une info d’actualité à porter avec une photo forte.';
-    if (quoteEarly && quote.text.length <= 180) { tpl = 'citation'; reason = 'Une phrase forte, entre guillemets, avec son auteur.'; }
+    if (postText && firstPerson >= 3 && !quote) { tpl = 'post'; reason = 'Une déclaration à la première personne : elle passe en format publication.'; }
+    else if (quoteEarly && quote.text.length <= 180) { tpl = 'citation'; reason = 'Une phrase forte, entre guillemets, avec son auteur.'; }
     else if (keyNum && keyNum.si <= 1) { tpl = 'chiffre'; reason = 'Un chiffre porte l’info dès le début du texte.'; }
     else if (duoLike) { tpl = 'duo'; reason = 'Deux personnes sont au centre de l’info.'; }
     else if (docLike) { tpl = 'dossier'; reason = 'L’info s’appuie sur un document officiel.'; }
     else if (len < 260) { tpl = 'bandeau'; reason = 'Un texte court, comme une info qui vient de tomber.'; }
     else if (len > 1500) { tpl = 'une'; reason = 'Un texte long : un sujet de fond.'; }
     const alts = ['une', 'surligne', 'alerte', 'bandeau'];
+    if (postText) alts.unshift('post');
     if (quote) alts.unshift('citation');
     if (keyNum) alts.unshift('chiffre');
     if (names.length >= 2) alts.unshift('duo');
@@ -4594,6 +4843,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       chiffre: keyNum ? { valeur: figureOf(keyNum), explication: clip(keyNum.sentence, 110) } : {},
       personnes: names.slice(0, 2).map((n) => ({ nom: n, fonction: capFirst(roleFor(flat, n)) })),
       document: docLike ? { titre: docTitleOf(flat), points: [] } : {},
+      post: { texte: postText },
       source,
       images: [],
       photos_a_trouver: names.length ? names.slice(0, 2).map((n) => 'Une photo ' + deName(n)) : ['Une photo liée à l’info'],
@@ -4788,7 +5038,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const two = tpl === 'duo' || tpl === 'dossier';
     const hint = (i) => R.photos[i] || (R.people[i] ? 'Une photo ' + deName(R.people[i].name) : '');
     const items = [];
-    if (tpl !== 'chiffre' && !slots.p1.img) items.push({ t: two ? 'Ajoute la photo 1' : 'Ajoute la photo', h: hint(0), input: 'photo-input' });
+    if (tpl === 'post' && !state.avatar) items.push({ t: 'Ajoute ta photo de profil', h: 'Elle reste sur cet appareil pour les prochains posts.', input: 'avatar-input' });
+    if (tpl !== 'chiffre' && tpl !== 'post' && !slots.p1.img) items.push({ t: two ? 'Ajoute la photo 1' : 'Ajoute la photo', h: hint(0), input: 'photo-input' });
     if (two && !slots.p2.img) items.push({ t: 'Ajoute la photo 2', h: hint(1), input: 'photo2-input' });
     if (tpl === 'dossier' && !slots.doc.img) items.push({ t: 'Ajoute l’image du document', h: R.doc.title || 'Un scan ou une capture du document', input: 'doc-input' });
     if (tpl === 'dossier' && slots.doc.img && !docMarks().length) items.push({ t: 'Surligne le passage clé du document', h: 'Trace un rectangle sur le document, dans l’aperçu.', run: startMarking, label: 'Surligner' });
@@ -5021,6 +5272,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   updateMarkCount();
   initAssistant();
   if (state.logo) setLogo(state.logo);
+  if (state.avatar) setAvatar(state.avatar);
   if (location.hash.indexOf('#kit=') === 0) {
     const ok = applyKitCode(decodeURIComponent(location.hash.slice(5)));
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* adresse inchangée */ }
