@@ -175,6 +175,9 @@ body {
 .readout .warn { color: var(--warn); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 @media (max-width: 899px) { #video-make { flex: 1 1 100%; } }
+/* vidéo importée : « Créer la vidéo » devient le bouton principal, en premier */
+body.vid-first #video-make { order: -1; }
+@media (max-width: 899px) { body.vid-first #download { flex: 1 1 100%; } }
 .actions .btn.primary { flex: 1 1 auto; }
 .kbd { font: 500 12px/1 var(--font-mono); color: var(--muted); white-space: nowrap; }
 .status { margin: 0; min-height: 1.45em; font-size: 14px; color: var(--muted); }
@@ -3102,7 +3105,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   let lastFit = null;
   let slideIdx = 0;
   /* pendant qu'une vidéo se crée ou s'affiche dans l'aperçu, c'est elle qui dessine sur l'aperçu */
-  const filming = { on: false };
+  const filming = { on: false, clip: false };
   function render() {
     if (filming.on) return;
     const f = FORMATS[state.format];
@@ -3958,8 +3961,10 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   function updateDownloadLabel() {
     const n = slideCount();
     const verb = STANDALONE || downloads ? 'Télécharger' : 'Obtenir';
-    $('download-label').textContent = n > 1 ? verb + ' les ' + n + ' images' : verb + ' l’image';
+    $('download-label').textContent = n > 1 ? verb + ' les ' + n + ' images' : verb + (filming.clip ? ' la couverture' : ' l’image');
   }
+  /* avec une vidéo importée, ce bouton ne donne que l'image fixe : on le dit */
+  const coverNote = () => (filming.clip ? ' C’est l’image de couverture : pour la vidéo, touche Créer la vidéo.' : '');
   try {
     if (!STANDALONE && window.claude && typeof window.claude.use === 'function') {
       window.claude.use('downloads').then((ns) => { downloads = ns || null; updateDownloadLabel(); }, () => { downloads = null; updateDownloadLabel(); });
@@ -4169,7 +4174,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
             say(files.length + ' images enregistrées dans un fichier .zip.');
           } else {
             await downloads.save({ filename: files[0].name, data: files[0] });
-            say('Image enregistrée.');
+            say('Image enregistrée.' + coverNote());
           }
           return;
         } catch (err) {
@@ -4183,7 +4188,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
           directDownload(files[i], files[i].name);
           if (i < files.length - 1) await pause(400);
         }
-        say(many ? files.length + ' images téléchargées, dans l’ordre des pages.' : 'Image téléchargée.');
+        say(many ? files.length + ' images téléchargées, dans l’ordre des pages.' : 'Image téléchargée.' + coverNote());
         return;
       }
       openSheet(files);
@@ -6161,8 +6166,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       setSlot('p1', poster, 'Vidéo · ' + (file.name || fmtTime(dur)), null);
       syncVideoUi();
       say(dur > VID_MAX
-        ? 'Vidéo ajoutée. Elle dépasse 2 minutes : règle le début et la fin dans Vidéo.'
-        : 'Vidéo ajoutée. Règle l’extrait dans Vidéo, puis touche Créer la vidéo.');
+        ? 'Vidéo ajoutée. Elle dépasse 2 minutes : règle le début et la fin dans Vidéo, puis touche le bouton rouge Créer la vidéo.'
+        : 'Vidéo ajoutée. Pour obtenir ta vidéo, touche le bouton rouge Créer la vidéo.');
     } catch (e) {
       try { v.removeAttribute('src'); v.load(); } catch (e2) { /* rien */ }
       v.remove();
@@ -6439,6 +6444,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     stopPreview();
     syncVideoUi();
   }
+  const SHARE_HINT_IMG = $('share-hint').innerHTML;
+  let actionsSet = false;
   function syncVideoUi() {
     const mode = videoMode();
     const running = vbusy || vprev;
@@ -6468,6 +6475,24 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     $('vid-preview').disabled = vbusy;
     $('vid-preview').textContent = vprev ? 'Arrêter l’aperçu' : 'Voir l’animation';
     $('video-make-label').textContent = vbusy ? 'Création…' : 'Créer la vidéo';
+    const clipOn = !!vid && state.tpl !== 'post';
+    if (clipOn !== filming.clip || !actionsSet) {
+      actionsSet = true;
+      filming.clip = clipOn;
+      document.body.classList.toggle('vid-first', clipOn);
+      $('video-make').classList.toggle('primary', clipOn);
+      $('download').classList.toggle('primary', !clipOn);
+      $('share').hidden = !canShareFiles || clipOn;
+      const sh = $('share-hint');
+      if (clipOn) {
+        sh.textContent = 'Le bouton rouge crée ta vidéo en temps réel : garde l’écran allumé jusqu’à la fin. Ensuite, Partager l’envoie à WhatsApp ou Facebook ; sur iPhone, «' + NB + 'Enregistrer la vidéo' + NB + '» la range dans Photos. Télécharger la couverture ne donne que l’image fixe.';
+        sh.hidden = false;
+      } else {
+        sh.innerHTML = SHARE_HINT_IMG;
+        sh.hidden = !canShareFiles;
+      }
+      updateDownloadLabel();
+    }
     const sup = $('vid-support');
     sup.hidden = canRecord;
     if (!canRecord) sup.textContent = 'Ce navigateur ne sait pas enregistrer de vidéo. Sur iPhone, il faut iOS 14.5 ou plus récent ; sinon, utilise Chrome à jour.';
