@@ -5770,11 +5770,11 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     return cv;
   }
   function drawVideoFrame(c, op) {
-    const v = vid ? vid.el : null;
+    const v = fastSrc ? fastSrc.img : vid ? vid.el : null;
     const r = op.rect;
-    const iw = v ? v.videoWidth : 0;
-    const ih = v ? v.videoHeight : 0;
-    if (!iw || !ih || v.readyState < 2) { c.drawImage(photoCache(op), r.x, r.y, r.w, r.h); return; }
+    const iw = fastSrc ? fastSrc.w : v ? v.videoWidth : 0;
+    const ih = fastSrc ? fastSrc.h : v ? v.videoHeight : 0;
+    if (!iw || !ih || (!fastSrc && v.readyState < 2)) { c.drawImage(photoCache(op), r.x, r.y, r.w, r.h); return; }
     if (op.filter === 'none') {
       const g = coverGeom(iw, ih, r.w, r.h, op.crop);
       c.drawImage(v, r.x + g.ox, r.y + g.oy, g.dw, g.dh);
@@ -6921,6 +6921,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   }
   let lastPct = -1;
   let progTotal = 0;
+  let progStart = 0;
   function showProgress(p) {
     const pct = Math.round(clamp(p, 0, 1) * 100);
     if (pct === lastPct) return;
@@ -6928,8 +6929,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     $('vid-meter').style.width = pct + '%';
     lastPct = pct;
     /* pour une longue vidéo, le temps restant compte plus que le pourcentage */
-    const left = progTotal * (1 - clamp(p, 0, 1));
-    const rest = progTotal >= 60 && pct < 100
+    const q = clamp(p, 0, 1);
+    const left = progStart ? (q > 0.03 ? ((performance.now() - progStart) / 1000) * (1 - q) / q : 0) : progTotal * (1 - q);
+    const rest = progTotal >= 60 && pct < 100 && left >= 5
       ? ' · encore ' + (left >= 90 ? Math.ceil(left / 60) + NNB + 'min' : Math.max(1, Math.round(left)) + NNB + 's')
       : '';
     $('vid-progress-text').textContent = 'Création de la vidéo… ' + pct + NNB + '%' + rest;
@@ -6954,7 +6956,541 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     if (total <= 300) return 3000000;
     return 1600000;
   }
+  /* ---------- moteur rapide (WebCodecs) ----------
+     La vidéo source n'est plus « lue » : ses images sont décodées une à une, habillées sur le canevas,
+     puis encodées directement en MP4 (H.264), avec le son d'origine recopié tel quel. Rien ne dépend
+     plus de la lecture en temps réel, qui se bloquait sur iPhone, et la création va plus vite que la vidéo. */
+  let fastSrc = null;
+  let fastWhy = '';
+  const fastCapable = () => typeof VideoEncoder === 'function' && typeof VideoFrame === 'function' && typeof EncodedVideoChunk === 'function';
+  const hex2 = (n) => (n < 16 ? '0' : '') + n.toString(16);
+  /* piste vidéo d'un MP4 ou MOV : réglages du décodeur et table des images */
+  function videoTrackOf(moov) {
+    const dv = moov;
+    const top = boxesIn(dv, boxSize(dv, 0, dv.byteLength).hdr, dv.byteLength);
+    const mvhd = top.find((x) => x.type === 'mvhd');
+    const movieTs = mvhd ? fullTimescale(dv, mvhd) : 1000;
+    for (const trak of top.filter((x) => x.type === 'trak')) {
+      const mdia = boxIn(dv, trak.a, trak.b, 'mdia');
+      if (!mdia) continue;
+      const hdlr = boxIn(dv, mdia.a, mdia.b, 'hdlr');
+      if (!hdlr || fourcc(dv, hdlr.a + 8) !== 'vide') continue;
+      const mdhd = boxIn(dv, mdia.a, mdia.b, 'mdhd');
+      const minf = boxIn(dv, mdia.a, mdia.b, 'minf');
+      const stbl = minf && boxIn(dv, minf.a, minf.b, 'stbl');
+      if (!mdhd || !stbl) continue;
+      const ts = fullTimescale(dv, mdhd);
+      const sb = boxesIn(dv, stbl.a, stbl.b);
+      const get = (t) => sb.find((x) => x.type === t);
+      const stsd = get('stsd');
+      const stts = get('stts');
+      const stsc = get('stsc');
+      const stsz = get('stsz');
+      const stco = get('stco') || get('co64');
+      if (!stsd || !stts || !stsc || !stsz || !stco || !ts) continue;
+      /* description : avc1 / hvc1 et sa boîte de réglages */
+      const e0 = stsd.a + 8;
+      const eSize = dv.getUint32(e0);
+      const kind = fourcc(dv, e0 + 4);
+      const w = dv.getUint16(e0 + 32);
+      const h = dv.getUint16(e0 + 34);
+      const inner = boxesIn(dv, e0 + 86, Math.min(stsd.b, e0 + eSize));
+      const cfgBox = inner.find((x) => x.type === 'avcC' || x.type === 'hvcC');
+      if (!cfgBox || !w || !h) return { why: 'codec ' + kind };
+      const desc = new Uint8Array(dv.buffer, dv.byteOffset + cfgBox.a, cfgBox.b - cfgBox.a).slice();
+      let codec = '';
+      if (cfgBox.type === 'avcC') {
+        codec = 'avc1.' + hex2(desc[1]) + hex2(desc[2]) + hex2(desc[3]);
+      } else {
+        const space = ['', 'A', 'B', 'C'][desc[1] >> 6];
+        let compat = 0;
+        const raw = ((desc[2] << 24) | (desc[3] << 16) | (desc[4] << 8) | desc[5]) >>> 0;
+        for (let k = 0; k < 32; k++) if (raw & (1 << k)) compat |= 1 << (31 - k);
+        let cons = [];
+        for (let k = 6; k < 12; k++) cons.push(desc[k]);
+        while (cons.length && cons[cons.length - 1] === 0) cons.pop();
+        codec = (kind === 'hev1' ? 'hev1' : 'hvc1') + '.' + space + (desc[1] & 31) + '.' + (compat >>> 0).toString(16)
+          + '.' + ((desc[1] & 32) ? 'H' : 'L') + desc[12] + cons.map((x) => '.' + x.toString(16)).join('');
+      }
+      /* tailles */
+      const fixed = dv.getUint32(stsz.a + 4);
+      const n = dv.getUint32(stsz.a + 8);
+      if (!n) continue;
+      const size = new Uint32Array(n);
+      for (let i = 0; i < n; i++) size[i] = fixed || dv.getUint32(stsz.a + 12 + i * 4);
+      /* instants de décodage puis d'affichage */
+      const dts = new Float64Array(n);
+      let t = 0;
+      let i = 0;
+      const ne = dv.getUint32(stts.a + 4);
+      for (let e = 0; e < ne && i < n; e++) {
+        const cnt = dv.getUint32(stts.a + 8 + e * 8);
+        const dl = dv.getUint32(stts.a + 12 + e * 8);
+        for (let k = 0; k < cnt && i < n; k++, i++) { dts[i] = t; t += dl; }
+      }
+      for (; i < n; i++) dts[i] = t;
+      const cts = new Float64Array(dts);
+      const ctts = get('ctts');
+      if (ctts) {
+        const nc = dv.getUint32(ctts.a + 4);
+        let s = 0;
+        for (let e = 0; e < nc && s < n; e++) {
+          const cnt = dv.getUint32(ctts.a + 8 + e * 8);
+          const o = dv.getInt32(ctts.a + 12 + e * 8);
+          for (let k = 0; k < cnt && s < n; k++, s++) cts[s] += o;
+        }
+      }
+      let shift = 0;
+      const edts = boxIn(dv, trak.a, trak.b, 'edts');
+      const elst = edts && boxIn(dv, edts.a, edts.b, 'elst');
+      if (elst) {
+        const v1 = dv.getUint8(elst.a) === 1;
+        const cnt = dv.getUint32(elst.a + 4);
+        let q = elst.a + 8;
+        for (let e = 0; e < cnt; e++) {
+          const segDur = v1 ? dv.getUint32(q) * 4294967296 + dv.getUint32(q + 4) : dv.getUint32(q);
+          const mt = v1 ? dv.getInt32(q + 8) * 4294967296 + dv.getUint32(q + 12) : dv.getInt32(q + 4);
+          q += v1 ? 20 : 12;
+          if (mt === -1) { shift += segDur / movieTs; continue; }
+          shift -= mt / ts;
+          break;
+        }
+      }
+      for (let k = 0; k < n; k++) { dts[k] = dts[k] / ts + shift; cts[k] = cts[k] / ts + shift; }
+      /* images clés */
+      const key = new Uint8Array(n);
+      const stss = get('stss');
+      if (stss) {
+        const nk = dv.getUint32(stss.a + 4);
+        for (let k = 0; k < nk; k++) { const s = dv.getUint32(stss.a + 8 + k * 4) - 1; if (s >= 0 && s < n) key[s] = 1; }
+      } else key.fill(1);
+      /* positions */
+      const co64 = stco.type === 'co64';
+      const ncz = dv.getUint32(stco.a + 4);
+      const chunk = (c) => (co64 ? dv.getUint32(stco.a + 8 + c * 8) * 4294967296 + dv.getUint32(stco.a + 12 + c * 8) : dv.getUint32(stco.a + 8 + c * 4));
+      const off = new Float64Array(n);
+      const nsc = dv.getUint32(stsc.a + 4);
+      let s = 0;
+      for (let e = 0; e < nsc && s < n; e++) {
+        const first = dv.getUint32(stsc.a + 8 + e * 12) - 1;
+        const per = dv.getUint32(stsc.a + 12 + e * 12);
+        const last = e + 1 < nsc ? dv.getUint32(stsc.a + 8 + (e + 1) * 12) - 1 : ncz;
+        for (let c = first; c < last && s < n; c++) {
+          let o = chunk(c);
+          for (let k = 0; k < per && s < n; k++, s++) { off[s] = o; o += size[s]; }
+        }
+      }
+      if (s < n) continue;
+      /* rotation (vidéos tenues debout) */
+      let rot = 0;
+      const tkhd = boxIn(dv, trak.a, trak.b, 'tkhd');
+      if (tkhd) {
+        const m = tkhd.a + (dv.getUint8(tkhd.a) === 1 ? 52 : 40);
+        rot = (Math.round(Math.atan2(dv.getInt32(m + 4), dv.getInt32(m)) / (Math.PI / 2)) + 4) % 4;
+      }
+      return { codec, desc, w, h, rot, n, size, off, dts, cts, key };
+    }
+    return { why: 'piste' };
+  }
+  /* lecture du fichier par blocs de 4 Mo : jamais toute la vidéo en mémoire */
+  function chunkReader(file) {
+    let buf = null;
+    let a = 0;
+    return async (off, len) => {
+      if (!buf || off < a || off + len > a + buf.byteLength) {
+        buf = new Uint8Array(await readBytes(file, off, Math.min(file.size, off + Math.max(len, 4194304))));
+        a = off;
+      }
+      return buf.subarray(off - a, off - a + len);
+    };
+  }
+  /* ---- écriture du MP4 ---- */
+  function mp4Box(type, parts) {
+    let len = 8;
+    for (const p of parts) len += p.length;
+    const out = new Uint8Array(len);
+    new DataView(out.buffer).setUint32(0, len);
+    for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+    let o = 8;
+    for (const p of parts) { out.set(p, o); o += p.length; }
+    return out;
+  }
+  function be32(v) {
+    const o = new Uint8Array(v.length * 4);
+    const d = new DataView(o.buffer);
+    for (let i = 0; i < v.length; i++) d.setUint32(i * 4, v[i] >>> 0);
+    return o;
+  }
+  const be16 = (v) => { const o = new Uint8Array(v.length * 2); v.forEach((x, i) => { o[i * 2] = (x >> 8) & 255; o[i * 2 + 1] = x & 255; }); return o; };
+  const zeros = (n) => new Uint8Array(n);
+  const MATRIX = [0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000];
+  function mp4Track(o, base) {
+    const n = o.sizes.length;
+    /* durées regroupées */
+    const stts = [];
+    for (let i = 0; i < n; i++) {
+      const d = o.durs[i];
+      if (stts.length && stts[stts.length - 1] === d) stts[stts.length - 2]++;
+      else stts.push(1, d);
+    }
+    const G = o.group;
+    const nChunks = Math.ceil(n / G);
+    const stsc = n % G === 0 || nChunks === 1 ? [1, nChunks === 1 ? n : G, 1] : [1, G, 1, nChunks, n % G, 1];
+    const stco = [];
+    let pos = base;
+    for (let i = 0; i < n; i++) { if (i % G === 0) stco.push(pos); pos += o.sizes[i]; }
+    const tables = [
+      mp4Box('stsd', [be32([0, 1]), o.entry]),
+      mp4Box('stts', [be32([0, stts.length / 2]), be32(stts)])
+    ];
+    if (o.ctts) {
+      const ct = [];
+      for (let i = 0; i < n; i++) ct.push(1, o.ctts[i]);
+      tables.push(mp4Box('ctts', [be32([0x01000000, n]), be32(ct)]));
+    }
+    if (o.keys) tables.push(mp4Box('stss', [be32([0, o.keys.length]), be32(o.keys)]));
+    tables.push(mp4Box('stsc', [be32([0, stsc.length / 3]), be32(stsc)]));
+    tables.push(mp4Box('stsz', [be32([0, 0, n]), be32(o.sizes)]));
+    tables.push(mp4Box('stco', [be32([0, stco.length]), be32(stco)]));
+    const video = o.kind === 'vide';
+    const total = o.durs.reduce((a, b) => a + b, 0);
+    const name = new Uint8Array(13);
+    const minf = mp4Box('minf', [
+      video ? mp4Box('vmhd', [be32([1]), zeros(8)]) : mp4Box('smhd', [zeros(8)]),
+      mp4Box('dinf', [mp4Box('dref', [be32([0, 1]), mp4Box('url ', [be32([1])])])]),
+      mp4Box('stbl', tables)
+    ]);
+    const hd = new Uint8Array(4);
+    for (let i = 0; i < 4; i++) hd[i] = o.kind.charCodeAt(i);
+    const mdia = mp4Box('mdia', [
+      mp4Box('mdhd', [be32([0, 0, 0, o.ts, total]), be16([0x55c4, 0])]),
+      mp4Box('hdlr', [zeros(8), hd, name]),
+      minf
+    ]);
+    const tkhd = mp4Box('tkhd', [be32([7, 0, 0, o.id, 0, Math.round((total / o.ts) * 1000), 0, 0]), be16([0, 0, video ? 0 : 0x0100, 0]), be32(MATRIX), be32([(o.w || 0) << 16, (o.h || 0) << 16])]);
+    return { box: mp4Box('trak', [tkhd, mdia]), bytes: pos - base, ms: Math.round((total / o.ts) * 1000) };
+  }
+  function muxMp4(W, H, vdesc, vch, audio) {
+    const VT = 90000;
+    const n = vch.length;
+    const pts = vch.map((x) => Math.round((x.ts * VT) / 1e6));
+    const min = Math.min.apply(null, pts.slice(0, 64));
+    for (let i = 0; i < n; i++) pts[i] -= min;
+    const sorted = pts.slice().sort((a, b) => a - b);
+    const reorder = pts.some((p, i) => p !== sorted[i]);
+    const durs = [];
+    for (let i = 0; i < n; i++) durs.push(i + 1 < n ? Math.max(1, sorted[i + 1] - sorted[i]) : 3000);
+    const keys = [];
+    vch.forEach((x, i) => { if (x.key) keys.push(i + 1); });
+    const cname = new Uint8Array(32);
+    const ventry = mp4Box('avc1', [zeros(6), be16([1]), zeros(16), be16([W, H]), be32([0x00480000, 0x00480000, 0]), be16([1]), cname, be16([0x18, 0xffff]), mp4Box('avcC', [vdesc])]);
+    const vt = { kind: 'vide', id: 1, ts: VT, w: W, h: H, entry: ventry, sizes: vch.map((x) => x.d.length), durs, keys, ctts: reorder ? pts.map((p, i) => p - sorted[i]) : null, group: 30 };
+    let at = null;
+    if (audio && audio.sizes.length) {
+      const asc = audio.asc;
+      const dsi = [0x05, asc.length].concat(Array.from(asc));
+      const dcd = [0x04, 13 + dsi.length, 0x40, 0x15, 0, 0, 0, 0, 1, 0xf4, 0, 0, 1, 0xf4, 0].concat(dsi);
+      const esd = [0x03, 3 + dcd.length + 3, 0, 1, 0].concat(dcd, [0x06, 1, 2]);
+      const aentry = mp4Box('mp4a', [zeros(6), be16([1]), zeros(8), be16([audio.ch, 16, 0, 0]), be32([(audio.sr << 16) >>> 0]), mp4Box('esds', [zeros(4), new Uint8Array(esd)])]);
+      at = { kind: 'soun', id: 2, ts: audio.sr, entry: aentry, sizes: audio.sizes, durs: audio.sizes.map(() => 1024), group: 43 };
+    }
+    const ftyp = mp4Box('ftyp', [new Uint8Array([105, 115, 111, 109, 0, 0, 2, 0, 105, 115, 111, 109, 105, 115, 111, 50, 97, 118, 99, 49, 109, 112, 52, 49])]);
+    const build = (base) => {
+      const v = mp4Track(vt, base);
+      const a = at ? mp4Track(at, base + v.bytes) : null;
+      const ms = Math.max(v.ms, a ? a.ms : 0);
+      const mvhd = mp4Box('mvhd', [be32([0, 0, 0, 1000, ms, 0x10000]), be16([0x0100, 0]), zeros(8), be32(MATRIX), zeros(24), be32([a ? 3 : 2])]);
+      return { moov: mp4Box('moov', a ? [mvhd, v.box, a.box] : [mvhd, v.box]), bytes: v.bytes + (a ? a.bytes : 0) };
+    };
+    const probe = build(0);
+    const head = ftyp.length + probe.moov.length + 8;
+    const fin = build(head);
+    const mdat = new Uint8Array(8);
+    new DataView(mdat.buffer).setUint32(0, 8 + fin.bytes);
+    mdat.set([109, 100, 97, 116], 4);
+    const parts = [ftyp, fin.moov, mdat];
+    for (const x of vch) parts.push(x.d);
+    if (at) for (const p of audio.parts) parts.push(p);
+    return new Blob(parts, { type: 'video/mp4' });
+  }
+  const AAC_RATES = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
+  /* le son d'origine, recopié sans être réencodé : parfait et instantané */
+  async function copyAudio(file, tr, a, b) {
+    let i0 = 0;
+    while (i0 < tr.n && tr.time[i0] < a) i0++;
+    let i1 = i0;
+    while (i1 < tr.n && tr.time[i1] < b) i1++;
+    const sizes = [];
+    const parts = [];
+    let i = i0;
+    while (i < i1) {
+      let j = i + 1;
+      let end = tr.off[i] + tr.size[i];
+      while (j < i1 && tr.off[j] === end && end - tr.off[i] < 2e6) { end += tr.size[j]; j++; }
+      parts.push(new Uint8Array(await readBytes(file, tr.off[i], end)));
+      for (let k = i; k < j; k++) sizes.push(tr.size[k]);
+      i = j;
+    }
+    const aot = tr.profile + 1;
+    return { sr: AAC_RATES[tr.sfi], ch: tr.ch, asc: new Uint8Array([(aot << 3) | (tr.sfi >> 1), ((tr.sfi & 1) << 7) | (tr.ch << 3)]), sizes, parts };
+  }
+  async function pickEncoder(W, H, bps) {
+    const lvl = W * H > 1600000 ? '2a' : '28';
+    for (const codec of ['avc1.6400' + lvl, 'avc1.4d00' + lvl, 'avc1.42e0' + lvl, 'avc1.42001f']) {
+      const cfg = { codec, width: W, height: H, bitrate: bps, framerate: 30, avc: { format: 'avc' } };
+      try {
+        const r = await VideoEncoder.isConfigSupported(cfg);
+        if (r && r.supported) return cfg;
+      } catch (e) { /* suivant */ }
+    }
+    return null;
+  }
+  /* rend le plan entier en MP4 ; lève une erreur si ce téléphone ne sait pas faire (on repasse alors à l'ancien moteur) */
+  async function fastExport(plan, job) {
+    const W = canvas.width;
+    const H = canvas.height;
+    const c = canvas.getContext('2d');
+    const TRANS = 0.45;
+    const clipSeg = plan.segs.find((s) => s.kind === 'video');
+    let track = null;
+    let moov = null;
+    if (clipSeg) {
+      if (!vid || !vid.file) throw new Error('fichier');
+      moov = await findMoov(vid.file);
+      if (!moov) throw new Error('format');
+      track = videoTrackOf(moov);
+      if (track.why) throw new Error(track.why);
+      if (typeof VideoDecoder !== 'function') throw new Error('decodeur');
+      const ok = await VideoDecoder.isConfigSupported({ codec: track.codec, description: track.desc, codedWidth: track.w, codedHeight: track.h });
+      if (!ok || !ok.supported) throw new Error('codec ' + track.codec);
+    }
+    let audioTr = null;
+    if (clipSeg && plan.sound) {
+      audioTr = audioTrackOf(moov);
+      /* un son que ce moteur ne sait pas recopier : l'ancien moteur le garde */
+      if (!audioTr && vid.hasAudio !== false) throw new Error('son');
+    }
+    const cfg = await pickEncoder(W, H, bitrateFor(plan.total));
+    if (!cfg) throw new Error('encodeur');
+    const out = [];
+    let vdesc = null;
+    let fail = null;
+    const enc = new VideoEncoder({
+      output: (ch, meta) => {
+        const d = new Uint8Array(ch.byteLength);
+        ch.copyTo(d);
+        out.push({ d, ts: ch.timestamp, key: ch.type === 'key' });
+        const ds = meta && meta.decoderConfig && meta.decoderConfig.description;
+        if (ds && !vdesc) vdesc = (ds instanceof ArrayBuffer ? new Uint8Array(ds) : new Uint8Array(ds.buffer, ds.byteOffset, ds.byteLength)).slice();
+      },
+      error: (e) => { fail = e || new Error('encodeur'); }
+    });
+    enc.configure(cfg);
+    let dec = null;
+    let snap = null;
+    let pageB = null;
+    let lastUs = -1;
+    let keyUs = -1e12;
+    let count = 0;
+    const emit = async (t) => {
+      let us = Math.round(t * 1e6);
+      if (us <= lastUs) us = lastUs + 1000;
+      lastUs = us;
+      const key = us - keyUs >= 2e6;
+      if (key) keyUs = us;
+      const f = new VideoFrame(canvas, { timestamp: us });
+      enc.encode(f, { keyFrame: key });
+      f.close();
+      count++;
+      if (fail) throw fail;
+      for (let g = 0; enc.encodeQueueSize > 3 && g < 2000; g++) await pause(3);
+      if (count % 6 === 0) {
+        showProgress(t / plan.total);
+        miniTick();
+        await pause(0);
+      }
+    };
+    const draw = (seg, t, prev) => {
+      if (prev && t < TRANS) {
+        const bc = pageB.getContext('2d');
+        drawSegAt(bc, seg, t);
+        const p = easeOut(clamp(t / TRANS, 0, 1));
+        resetCtx(c);
+        if (seg.trans === 'push') {
+          c.fillStyle = BLACK;
+          c.fillRect(0, 0, W, H);
+          c.drawImage(prev, -Math.round(W * p), 0);
+          c.drawImage(pageB, Math.round(W * (1 - p)), 0);
+        } else {
+          c.drawImage(prev, 0, 0);
+          c.globalAlpha = p;
+          c.drawImage(pageB, 0, 0);
+          c.globalAlpha = 1;
+        }
+      } else {
+        drawSegAt(c, seg, t);
+      }
+      if (state.vidBar && state.format !== 'story') drawBar(c, (seg.t0 + t) / plan.total, W);
+    };
+    const clip = async (seg) => {
+      const tr = track;
+      const start = vid.start;
+      const dur = seg.dur;
+      /* on repart de l'image clé qui précède le début de l'extrait */
+      let near = 0;
+      for (let i = 1; i < tr.n; i++) if (Math.abs(tr.cts[i] - start) < Math.abs(tr.cts[near] - start)) near = i;
+      let i = near;
+      while (i > 0 && !(tr.key[i] && tr.cts[i] <= start + 1e-4)) i--;
+      const sw = tr.rot % 2 ? tr.h : tr.w;
+      const sh = tr.rot % 2 ? tr.w : tr.h;
+      const k = Math.min(1, 1920 / Math.max(sw, sh));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(2, Math.round(sw * k));
+      cv.height = Math.max(2, Math.round(sh * k));
+      const cc = cv.getContext('2d');
+      fastSrc = { img: cv, w: cv.width, h: cv.height };
+      const queue = [];
+      dec = new VideoDecoder({ output: (f) => queue.push(f), error: (e) => { fail = e || new Error('decodeur'); } });
+      dec.configure({ codec: tr.codec, description: tr.desc, codedWidth: tr.w, codedHeight: tr.h });
+      let nextOut = -1;
+      let first = true;
+      let over = false;
+      const drain = async () => {
+        while (queue.length) {
+          const f = queue.shift();
+          let t = f.timestamp / 1e6 - start;
+          if (job.stopped || over || t < -0.0005 || t < nextOut) { f.close(); continue; }
+          if (t >= dur) { over = true; f.close(); continue; }
+          if (first) { t = 0; first = false; }
+          const fw = f.displayWidth * k;
+          const fh = f.displayHeight * k;
+          cc.setTransform(1, 0, 0, 1, cv.width / 2, cv.height / 2);
+          cc.rotate((tr.rot * Math.PI) / 2);
+          cc.drawImage(f, -fw / 2, -fh / 2, fw, fh);
+          f.close();
+          draw(seg, t, null);
+          nextOut = t + 1 / 30 - 0.004;
+          await emit(seg.t0 + t);
+        }
+      };
+      const read = chunkReader(vid.file);
+      const end = start + dur;
+      try {
+        for (; i < tr.n && !over && !job.stopped; i++) {
+          if (tr.dts[i] > end + 1.5) break;
+          for (let g = 0; (dec.decodeQueueSize > 5 || queue.length > 3) && g < 4000 && !fail; g++) { await drain(); if (dec.decodeQueueSize > 5) await pause(2); }
+          if (fail) throw fail;
+          const data = await read(tr.off[i], tr.size[i]);
+          dec.decode(new EncodedVideoChunk({ type: tr.key[i] ? 'key' : 'delta', timestamp: Math.round(tr.cts[i] * 1e6), data }));
+          await drain();
+        }
+        if (!job.stopped && !over) { await dec.flush(); await drain(); }
+        if (fail) throw fail;
+        if (first && !job.stopped) throw new Error('aucune image');
+      } finally {
+        for (const f of queue) { try { f.close(); } catch (e) { /* rien */ } }
+        queue.length = 0;
+        try { if (dec.state !== 'closed') dec.close(); } catch (e) { /* rien */ }
+      }
+    };
+    try {
+      for (let k = 0; k < plan.segs.length && !job.stopped; k++) {
+        const seg = plan.segs[k];
+        let prev = null;
+        if (k > 0 && seg.trans) {
+          if (!snap) { snap = document.createElement('canvas'); snap.width = W; snap.height = H; }
+          if (!pageB) { pageB = document.createElement('canvas'); pageB.width = W; pageB.height = H; }
+          const before = plan.segs[k - 1];
+          drawSegAt(snap.getContext('2d'), before, before.dur);
+          prev = snap;
+        }
+        if (k > 0) freeScene(plan.segs[k - 1].sc);
+        prepSeg(seg, W, H);
+        if (seg.kind === 'video') await clip(seg);
+        else {
+          const nf = Math.max(1, Math.round(seg.dur * 30));
+          for (let i = 0; i < nf && !job.stopped; i++) { draw(seg, i / 30, prev); await emit(seg.t0 + i / 30); }
+        }
+      }
+      if (job.stopped) return null;
+      await enc.flush();
+      if (fail) throw fail;
+      if (!vdesc || !out.length) throw new Error('flux');
+      showProgress(1);
+      let audio = null;
+      if (audioTr) {
+        try { audio = await copyAudio(vid.file, audioTr, vid.start, vid.start + clipSeg.dur); } catch (e) { audio = null; }
+      }
+      return { blob: muxMp4(W, H, vdesc, out, audio), sound: !!(audio && audio.sizes.length) };
+    } finally {
+      fastSrc = null;
+      try { if (enc.state !== 'closed') enc.close(); } catch (e) { /* rien */ }
+      if (snap) { snap.width = 0; snap.height = 0; }
+      if (pageB) { pageB.width = 0; pageB.height = 0; }
+      for (const s of plan.segs) freeScene(s.sc);
+    }
+  }
   async function makeVideo() {
+    if (vbusy) return;
+    if (fastCapable()) {
+      const done = await makeVideoFast();
+      if (done) return;
+    }
+    return makeVideoLegacy();
+  }
+  /* true si la vidéo est faite (ou arrêtée) ; false s'il faut repasser à l'ancien moteur */
+  async function makeVideoFast() {
+    stopPreview();
+    if (marking) stopMarking();
+    vbusy = true;
+    lastPct = -1;
+    fastWhy = '';
+    if (vid) { try { vid.el.pause(); } catch (e) { /* rien */ } }
+    syncVideoUi();
+    const job = { stopped: false, reason: '', diag: '' };
+    let plan = null;
+    let res = null;
+    let lock = null;
+    let err = null;
+    try {
+      plan = buildPlan();
+      vjob = job;
+      filming.on = true;
+      progTotal = plan.total;
+      progStart = performance.now();
+      RK = plan.total > 300 ? 2 / 3 : 1;
+      const cw = Math.round(plan.W * RK);
+      const ch = Math.round(plan.H * RK);
+      if (canvas.width !== cw) canvas.width = cw;
+      if (canvas.height !== ch) canvas.height = ch;
+      showProgress(0);
+      say('Reste sur la page pendant la création.');
+      lock = await keepAwake();
+      res = await fastExport(plan, job);
+    } catch (e) {
+      err = e || new Error('?');
+    } finally {
+      if (vjob === job) vjob = null;
+      if (lock) { try { lock.release(); } catch (e) { /* rien */ } }
+      progStart = 0;
+      RK = 1;
+      vbusy = false;
+      filming.on = false;
+      $('vid-progress').hidden = true;
+      syncVideoUi();
+      render();
+    }
+    if (job.stopped) { say(STOP_MSG[job.reason] || 'Vidéo arrêtée.'); return true; }
+    if (err || !res) {
+      fastWhy = String((err && (err.message || err.name)) || 'vide').slice(0, 60);
+      return false;
+    }
+    vfile = new File([res.blob], 'video-' + state.tpl + '-' + stamp() + '.mp4', { type: 'video/mp4' });
+    say('');
+    openVideoSheet(vfile, plan.total, plan.sound && !res.sound ? SOUND_MSG.lost : '');
+    return true;
+  }
+  async function makeVideoLegacy() {
     if (vbusy) return;
     if (!canRecord) { say('Ce navigateur ne sait pas créer de vidéo. Sur iPhone, il faut iOS 14.5 ou plus récent ; sinon, utilise Chrome à jour.'); return; }
     stopPreview();
@@ -7047,7 +7583,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     } finally {
       if (job && job.diag) {
         const ios = /OS (\d+)_(\d+)/.exec(navigator.userAgent || '');
-        job.diag += ' s' + (sound ? 1 : 0) + ' a' + (actx ? String(actx.state).slice(0, 2) : '-') + (ios ? ' ios' + ios[1] + '.' + ios[2] : '');
+        job.diag += (fastWhy ? ' f:' + fastWhy : '') + ' s' + (sound ? 1 : 0) + ' a' + (actx ? String(actx.state).slice(0, 2) : '-') + (ios ? ' ios' + ios[1] + '.' + ios[2] : '');
       }
       if (stream) for (const tr of stream.getTracks()) { try { tr.stop(); } catch (e) { /* rien */ } }
       if (sound) { try { sound.stop(); } catch (e) { /* rien */ } }
@@ -7156,7 +7692,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       $('share').hidden = !canShareFiles || clipOn;
       const sh = $('share-hint');
       if (clipOn) {
-        sh.textContent = 'Le bouton rouge crée ta vidéo en temps réel : garde l’écran allumé jusqu’à la fin. Ensuite, Partager l’envoie à WhatsApp ou Facebook ; sur iPhone, «' + NB + 'Enregistrer la vidéo' + NB + '» la range dans Photos. Télécharger la couverture ne donne que l’image fixe.';
+        sh.textContent = 'Le bouton rouge crée ta vidéo, plus vite que sa durée : reste sur la page jusqu’à la fin. Ensuite, Partager l’envoie à WhatsApp ou Facebook ; sur iPhone, «' + NB + 'Enregistrer la vidéo' + NB + '» la range dans Photos. Télécharger la couverture ne donne que l’image fixe.';
         sh.hidden = false;
       } else {
         sh.innerHTML = SHARE_HINT_IMG;

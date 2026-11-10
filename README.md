@@ -24,6 +24,6 @@ Un sujet long devient une série d’images : la couverture, puis des pages text
 - Carrousel en vidéo : toutes les pages à la suite dans une seule vidéo, avec un glissement entre elles.
 - En option : titre animé, carton de fin d’abonnement, barre de progression.
 
-La vidéo se fabrique dans le navigateur, en temps réel (MediaRecorder) : MP4 sur iPhone, MP4 ou WebM ailleurs. Rien n’est envoyé sur un serveur.
+La vidéo se fabrique dans le navigateur, image par image (WebCodecs) : les images de la vidéo source sont décodées, habillées puis encodées en MP4 H.264, plus vite que la durée de la vidéo, et le son d’origine est recopié tel quel. Sur un navigateur ancien, l’outil repasse à l’enregistrement en temps réel (MediaRecorder). Rien n’est envoyé sur un serveur.
 
 Site : https://togoimy-hassane.github.io/alerte-info/
