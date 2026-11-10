@@ -133,10 +133,11 @@ body {
   max-width: 100%;
   aspect-ratio: var(--ar);
 }
-.screen canvas { display: block; width: 100%; height: 100%; }
+.screen canvas { position: relative; z-index: 1; display: block; width: 100%; height: 100%; }
+.screen .src-video { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.01; pointer-events: none; }
 .screen.drop { outline: 3px dashed var(--accent); outline-offset: 5px; }
 .screen.marking canvas { cursor: crosshair; touch-action: none; }
-.guides { position: absolute; inset: 0; pointer-events: none; }
+.guides { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .guides .safe { position: absolute; border: 1.5px dashed rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
 .guides .zone {
   position: absolute;
@@ -6010,24 +6011,29 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     };
     const playClip = async (seg) => {
       const v = vid.el;
-      v.muted = !o.sound;
-      try {
-        await v.play();
-      } catch (e) {
-        v.muted = true;
-        try { await v.play(); } catch (e2) { job.stopped = true; job.reason = 'play'; return; }
-      }
+      v.muted = true;
+      if (!(await playSafe(v, 5000)) && !(await playSafe(v, 4000))) { job.stopped = true; job.reason = 'play'; return; }
+      if (job.stopped) return;
+      if (o.clipStart) o.clipStart(v.currentTime - vid.start);
       let last = -1e9;
+      let lastCt = v.currentTime;
+      let moved = performance.now();
+      let kicked = false;
       for (;;) {
         const now = await nextFrame();
         if (job.stopped) break;
         const ct = v.currentTime;
         if (v.ended || ct >= vid.end - 0.02) { draw(seg, clamp(ct - vid.start, 0, seg.dur), null); break; }
+        /* garde-fou : si la vidéo ne bouge plus, on la relance, puis on abandonne avec un message */
+        if (ct !== lastCt) { lastCt = ct; moved = now; kicked = false; }
+        else if (now - moved > 9000) { job.stopped = true; job.reason = 'stall'; break; }
+        else if (now - moved > 3000 && !kicked) { kicked = true; playSafe(v, 3000); }
         if (now - last < gap) continue;
         last = now;
         draw(seg, Math.max(0, ct - vid.start), null);
       }
       try { v.pause(); } catch (e) { /* déjà en pause */ }
+      if (o.clipStop) o.clipStop();
     };
     try {
       const first = plan.segs[0];
@@ -6140,7 +6146,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     v.setAttribute('webkit-playsinline', '');
     v.setAttribute('muted', '');
     v.preload = 'auto';
-    vidHost.appendChild(v);
+    /* la vidéo source se place sous l'aperçu : présente à l'écran, iPhone la lit sans la mettre en pause */
+    v.className = 'src-video';
+    $('screen').insertBefore(v, canvas);
     try {
       const meta = onceEvent(v, 'loadedmetadata', 20000);
       v.src = url;
@@ -6162,7 +6170,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       }
       if (!poster) throw new Error('frame');
       if (vid) dropVideo();
-      vid = { el: v, url, name: file.name || 'Vidéo', dur, start: 0, end: Math.min(dur, VID_MAX), pos, poster, audio: null };
+      const hasAudio = v.audioTracks && typeof v.audioTracks.length === 'number' ? v.audioTracks.length > 0
+        : typeof v.mozHasAudio === 'boolean' ? v.mozHasAudio : null;
+      vid = { el: v, url, file, name: file.name || 'Vidéo', dur, start: 0, end: Math.min(dur, VID_MAX), pos, poster, hasAudio };
       setSlot('p1', poster, 'Vidéo · ' + (file.name || fmtTime(dur)), null);
       syncVideoUi();
       say(dur > VID_MAX
@@ -6181,7 +6191,6 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const old = vid;
     vid = null;
     try { old.el.pause(); } catch (e) { /* rien */ }
-    if (old.audio) { try { old.audio.ac.close(); } catch (e) { /* rien */ } }
     try { old.el.removeAttribute('src'); old.el.load(); } catch (e) { /* rien */ }
     old.el.remove();
     try { URL.revokeObjectURL(old.url); } catch (e) { /* rien */ }
@@ -6274,32 +6283,71 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     }
     return '';
   }
-  function audioFor() {
-    if (!vid) return null;
-    if (vid.audio) return vid.audio;
+  /* Le son : la vidéo importée est toujours lue muette (faire passer son son dans Web Audio fige la
+     lecture sur iPhone). On décode la piste son du fichier lui-même, puis on la rejoue en même temps. */
+  const SOUND_MAX = 300;
+  let actx = null;
+  function audioCtx() {
+    if (actx && actx.state !== 'closed') return actx;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
+    try { actx = new AC(); } catch (e) { actx = null; }
+    return actx;
+  }
+  function decodeAudio(ac, data) {
+    return new Promise((resolve, reject) => {
+      try {
+        const p = ac.decodeAudioData(data, resolve, reject);
+        if (p && typeof p.then === 'function') p.then(resolve, reject);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+  /* piste son de l'extrait choisi, ou la raison de son absence */
+  async function clipSound(ac) {
+    if (!vid || !vid.file) return { why: 'lost' };
+    if (vid.hasAudio === false) return { why: 'none' };
+    if (vid.dur > SOUND_MAX) return { why: 'long' };
     try {
-      const ac = new AC();
-      const src = ac.createMediaElementSource(vid.el);
-      vid.audio = { ac, src };
-      return vid.audio;
+      const data = typeof vid.file.arrayBuffer === 'function'
+        ? await vid.file.arrayBuffer()
+        : await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsArrayBuffer(vid.file); });
+      const full = await Promise.race([decodeAudio(ac, data), pause(20000).then(() => null)]);
+      if (!full || !full.length) return { why: 'lost' };
+      const sr = full.sampleRate;
+      const a = clamp(Math.floor(vid.start * sr), 0, full.length);
+      const b = clamp(Math.ceil(vid.end * sr), a, full.length);
+      if (b - a < sr * 0.2) return { why: 'none' };
+      const buf = ac.createBuffer(full.numberOfChannels, b - a, sr);
+      for (let ch = 0; ch < full.numberOfChannels; ch++) buf.getChannelData(ch).set(full.getChannelData(ch).subarray(a, b));
+      return { buf };
     } catch (e) {
-      return null;
+      return { why: 'lost' };
     }
   }
-  /* appelé dans le geste de l'utilisateur : iPhone n'autorise le son et la lecture qu'à ce moment-là */
-  function primeMedia() {
+  /* appelé dans le geste de l'utilisateur : iPhone n'autorise la lecture et le son qu'à ce moment-là */
+  function unlockClip() {
     if (!vid || videoMode() === 'anim') return;
-    if (state.vidSound) {
-      const a = audioFor();
-      if (a && a.ac.state !== 'running') { try { a.ac.resume(); } catch (e) { /* rien */ } }
-    }
     try {
-      vid.el.muted = !state.vidSound;
+      vid.el.muted = true;
       const p = vid.el.play();
       if (p && typeof p.catch === 'function') p.catch(() => {});
-    } catch (e) { /* on relancera en muet */ }
+    } catch (e) { /* on réessaiera */ }
+    if (state.vidSound) {
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* iOS ancien */ }
+      const ac = audioCtx();
+      if (ac && ac.state !== 'running') { try { const r = ac.resume(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* rien */ } }
+    }
+  }
+  async function playSafe(v, ms) {
+    try {
+      const p = v.play();
+      if (p && typeof p.then === 'function') await Promise.race([p, pause(ms)]);
+    } catch (e) {
+      return false;
+    }
+    return !v.paused;
   }
   async function keepAwake() {
     try { if (navigator.wakeLock && typeof navigator.wakeLock.request === 'function') return await navigator.wakeLock.request('screen'); } catch (e) { /* pas de verrou */ }
@@ -6317,8 +6365,14 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   const STOP_MSG = {
     user: 'Vidéo arrêtée.',
     hidden: 'La vidéo s’est arrêtée : l’écran s’est éteint ou tu as quitté la page. Recommence en gardant la page ouverte jusqu’à la fin.',
-    play: 'La vidéo importée n’a pas pu être lue. Touche encore Créer la vidéo.',
+    play: 'La vidéo importée n’a pas pu démarrer. Touche encore Créer la vidéo.',
+    stall: 'La lecture de la vidéo s’est bloquée sur ce téléphone. Réessaie ; si ça recommence, envoie-toi la vidéo par WhatsApp, réimporte-la, puis recrée la vidéo.',
     gone: 'La vidéo a été retirée pendant la création.'
+  };
+  const SOUND_MSG = {
+    none: 'La vidéo d’origine n’a pas de son.',
+    long: 'Le son n’est gardé que pour les vidéos de 5 minutes au plus : raccourcis la vidéo avant de l’importer.',
+    lost: 'Le son n’a pas pu être ajouté, ou la vidéo d’origine n’en a pas : la vidéo est muette.'
   };
   async function makeVideo() {
     if (vbusy) return;
@@ -6331,6 +6385,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     let plan = null;
     let stream = null;
     let dest = null;
+    let sound = null;
+    let soundWhy = '';
     let rec = null;
     let lock = null;
     let job = null;
@@ -6343,18 +6399,26 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       if (canvas.height !== plan.H) canvas.height = plan.H;
       stream = canvas.captureStream(30);
       if (plan.sound) {
-        const a = audioFor();
-        if (a) {
-          try {
-            dest = a.ac.createMediaStreamDestination();
-            a.src.connect(dest);
-            if (a.ac.state !== 'running') a.ac.resume();
-            const tr = dest.stream.getAudioTracks()[0];
-            if (tr) stream.addTrack(tr); else dest = null;
-          } catch (e) {
-            dest = null;
+        showProgress(0);
+        $('vid-progress-text').textContent = 'Préparation du son…';
+        const ac = audioCtx();
+        if (ac) {
+          if (ac.state !== 'running') { try { await Promise.race([ac.resume(), pause(1500)]); } catch (e) { /* rien */ } }
+          const got = await clipSound(ac);
+          if (got.buf && ac.state === 'running') {
+            try {
+              dest = ac.createMediaStreamDestination();
+              const tr = dest.stream.getAudioTracks()[0];
+              if (tr) { stream.addTrack(tr); sound = { ac, buf: got.buf, node: null }; } else dest = null;
+            } catch (e) {
+              dest = null;
+            }
           }
+          if (!sound) soundWhy = got.why || 'lost';
+        } else {
+          soundWhy = 'lost';
         }
+        lastPct = -1;
       }
       const mime = pickMime(!!dest);
       const bps = plan.total > 45 ? 4000000 : 6000000;
@@ -6369,8 +6433,19 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       say('Garde l’écran allumé et reste sur la page pendant la création.');
       lock = await keepAwake();
       job = await runPlan(plan, canvas, {
-        sound: !!dest,
         start: () => { try { rec.start(1000); } catch (e) { rec.start(); } },
+        /* le son démarre à l'endroit exact où en est la vidéo */
+        clipStart: (offset) => {
+          if (!sound || !dest) return;
+          try {
+            const node = sound.ac.createBufferSource();
+            node.buffer = sound.buf;
+            node.connect(dest);
+            node.start(0, clamp(offset, 0, sound.buf.duration));
+            sound.node = node;
+          } catch (e) { /* vidéo sans son */ }
+        },
+        clipStop: () => { if (sound && sound.node) { try { sound.node.stop(); } catch (e) { /* déjà fini */ } } },
         frame: (p) => { showProgress(p); if (!mini.hidden) drawMini(); }
       });
       await pause(160);
@@ -6381,8 +6456,10 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     } catch (e) {
       job = job || { stopped: true, reason: 'error' };
     } finally {
-      if (stream) for (const tr of stream.getVideoTracks()) { try { tr.stop(); } catch (e) { /* rien */ } }
-      if (dest && vid && vid.audio) { try { vid.audio.src.disconnect(dest); } catch (e) { /* rien */ } }
+      if (stream) for (const tr of stream.getTracks()) { try { tr.stop(); } catch (e) { /* rien */ } }
+      if (sound && sound.node) { try { sound.node.stop(); sound.node.disconnect(); } catch (e) { /* rien */ } }
+      sound = null;
+      try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) { /* rien */ }
       if (lock) { try { lock.release(); } catch (e) { /* rien */ } }
       vbusy = false;
       filming.on = false;
@@ -6400,7 +6477,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const ext = /mp4/.test(type) ? 'mp4' : 'webm';
     vfile = new File([blob], 'video-' + state.tpl + '-' + stamp() + '.' + ext, { type });
     say('');
-    openVideoSheet(vfile, plan.total, plan.sound && !dest);
+    openVideoSheet(vfile, plan.total, plan.sound && !dest ? SOUND_MSG[soundWhy] || SOUND_MSG.lost : '');
   }
   function stopPreview() {
     if (vprev && vjob) { vjob.stopped = true; vjob.reason = 'user'; }
@@ -6429,7 +6506,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   }
   $('video-make').addEventListener('click', () => {
     if (vbusy) return;
-    primeMedia();
+    unlockClip();
     makeVideo();
   });
   $('vid-preview').addEventListener('click', () => {
@@ -6524,7 +6601,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     if (share) hints.push('Partager ouvre WhatsApp, Facebook et tes autres applis, et copie la légende. Sur iPhone, «' + NB + 'Enregistrer la vidéo' + NB + '» la range dans Photos.');
     if (!save) hints.push('Fais un appui long sur la vidéo pour l’enregistrer.');
     if (!mp4) hints.push('Ce navigateur sort la vidéo en WebM : Facebook l’accepte, mais pour WhatsApp, crée-la plutôt depuis un iPhone ou un Chrome à jour.');
-    if (soundLost) hints.push('Le son n’a pas pu être ajouté sur ce navigateur : la vidéo est muette.');
+    if (soundLost) hints.push(soundLost);
     $('vsheet-hint').textContent = hints.join(' ');
     vsheet.hidden = false;
     $('vsheet-close').focus();
