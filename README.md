@@ -19,7 +19,7 @@ Un sujet long devient une série d’images : la couverture, puis des pages text
 
 ## Vidéo
 
-- Habiller une vidéo : la vidéo importée prend la place de la photo, le titre, l’étiquette, le logo et la signature restent posés dessus. On choisit le début, la fin, l’image de couverture et le son.
+- Habiller une vidéo : la vidéo importée prend la place de la photo, le titre, l’étiquette, le logo et la signature restent posés dessus. On choisit le début, la fin (jusqu’à 20 minutes), l’image de couverture et le son. Le son des longues vidéos MP4 et MOV est lu par tranches, sans charger la vidéo en mémoire.
 - Animer un visuel : sans vidéo, la photo zoome doucement et les éléments entrent l’un après l’autre (6, 10 ou 15 secondes).
 - Carrousel en vidéo : toutes les pages à la suite dans une seule vidéo, avec un glissement entre elles.
 - En option : titre animé, carton de fin d’abonnement, barre de progression.

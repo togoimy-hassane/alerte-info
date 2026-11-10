@@ -1039,7 +1039,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
             <label class="range" for="vid-end"><span>Fin</span><input type="range" id="vid-end" min="0" max="1000" step="1" value="1000"><output id="vid-end-out" for="vid-end">0:00</output></label>
             <label class="range" for="vid-pos"><span>Couverture</span><input type="range" id="vid-pos" min="0" max="1000" step="1" value="0"><output id="vid-pos-out" for="vid-pos">0:00</output></label>
           </div>
-          <p class="hint">La couverture est l’image montrée dans l’aperçu et dans «&nbsp;Télécharger l’image&nbsp;» : elle sert de miniature. 2 minutes au plus par vidéo ; pour un statut WhatsApp, reste sous 60 secondes.</p>
+          <p class="hint">La couverture est l’image montrée dans l’aperçu et dans «&nbsp;Télécharger l’image&nbsp;» : elle sert de miniature. Jusqu’à 20 minutes par vidéo ; la création dure autant que l’extrait. Pour un statut WhatsApp, reste sous 60 secondes.</p>
           <label class="toggle" for="vid-sound"><input type="checkbox" id="vid-sound">Garder le son de la vidéo</label>
         </div>
         <div class="field" id="vid-dur-field">
@@ -5649,8 +5649,10 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   const REC_PATH = { beginPath: 1, closePath: 1, moveTo: 1, lineTo: 1, arc: 1, arcTo: 1, rect: 1, quadraticCurveTo: 1, bezierCurveTo: 1, ellipse: 1, roundRect: 1 };
   const REC_STATE = { save: 1, restore: 1, setTransform: 1, transform: 1, translate: 1, scale: 1, rotate: 1, resetTransform: 1, clip: 1, setLineDash: 1 };
   const BLACK = '#000000';
-  const VID_MAX = 120;
+  const VID_MAX = 1200;
   const VR = 1000;
+  /* échelle de rendu : 1 en temps normal, 2/3 (720 px de large) pour les vidéos longues */
+  let RK = 1;
 
   /* un dégradé enregistré se recrée sur le canevas qui le rejoue */
   function RecGrad(kind, args, real) {
@@ -5752,8 +5754,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   function photoCache(op) {
     if (op.cache && op.cache.width) return op.cache;
     const cv = document.createElement('canvas');
-    cv.width = Math.max(1, Math.round(op.rect.w * 1.08));
-    cv.height = Math.max(1, Math.round(op.rect.h * 1.08));
+    cv.width = Math.max(1, Math.round(op.rect.w * 1.08 * RK));
+    cv.height = Math.max(1, Math.round(op.rect.h * 1.08 * RK));
     paintLayer(cv, op.key, op.filter, op.crop);
     op.cache = cv;
     return cv;
@@ -5782,7 +5784,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const M = op.M;
     const live = isLive(sc, op);
     c.save();
-    c.setTransform(M[0], M[1], M[2], M[3], M[4], M[5]);
+    c.setTransform(M[0] * RK, M[1] * RK, M[2] * RK, M[3] * RK, M[4] * RK, M[5] * RK);
     if (flat && live) {
       /* fond figé : on perce un trou à la place de la photo, l'image vivante passe dessous */
       c.globalCompositeOperation = 'destination-out';
@@ -5820,6 +5822,13 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       }
       const m = op.m;
       if (m === 'photo') { paintPhotoOp(c, sc, op, t, A, flat); continue; }
+      if (RK !== 1 && (m === 'setTransform' || m === 'resetTransform')) {
+        const a = op.a;
+        if (m === 'resetTransform') c.setTransform(RK, 0, 0, RK, 0, 0);
+        else if (a.length >= 6) c.setTransform(a[0] * RK, a[1] * RK, a[2] * RK, a[3] * RK, a[4] * RK, a[5] * RK);
+        else if (a[0]) c.setTransform(a[0].a * RK, a[0].b * RK, a[0].c * RK, a[0].d * RK, a[0].e * RK, a[0].f * RK);
+        continue;
+      }
       if (m === 'clearRect') {
         if (flat) c.clearRect.apply(c, op.a);
         else {
@@ -5839,7 +5848,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       if (fx.a < 1) c.globalAlpha *= fx.a;
       if (fx.dx || fx.dy) {
         const mt = typeof c.getTransform === 'function' ? c.getTransform() : null;
-        c.translate(fx.dx / ((mt && mt.a) || 1), fx.dy / ((mt && mt.d) || 1));
+        c.translate((fx.dx * RK) / ((mt && mt.a) || RK), (fx.dy * RK) / ((mt && mt.d) || RK));
       }
       c[m].apply(c, op.a);
       c.restore();
@@ -5900,9 +5909,11 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   function drawSegAt(c, seg, t) {
     const sc = seg.sc;
     const A = seg.anim;
+    const w = c.canvas.width;
+    const h = c.canvas.height;
     resetCtx(c);
     c.fillStyle = BLACK;
-    c.fillRect(0, 0, seg.W, seg.H);
+    c.fillRect(0, 0, w, h);
     if (A && t < A.end) {
       replayScene(c, sc, t, A, false);
       resetCtx(c);
@@ -5910,14 +5921,15 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     }
     for (const op of sc.photos) if (isLive(sc, op)) paintPhotoOp(c, sc, op, t, A, false);
     resetCtx(c);
-    c.drawImage(flatOf(sc, seg.W, seg.H), 0, 0);
+    c.drawImage(flatOf(sc, w, h), 0, 0);
   }
   function drawBar(c, p, W) {
+    const bh = Math.max(4, Math.round(8 * RK));
     resetCtx(c);
     c.fillStyle = 'rgba(255,255,255,0.3)';
-    c.fillRect(0, 0, W, 8);
+    c.fillRect(0, 0, W, bh);
     c.fillStyle = state.alert;
-    c.fillRect(0, 0, Math.round(W * clamp(p, 0, 1)), 8);
+    c.fillRect(0, 0, Math.round(W * clamp(p, 0, 1)), bh);
   }
 
   /* ce que « Créer la vidéo » va produire */
@@ -5966,8 +5978,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const job = { stopped: false, reason: '' };
     vjob = job;
     const c = out.getContext('2d');
-    const W = plan.W;
-    const H = plan.H;
+    const W = out.width;
+    const H = out.height;
     const TRANS = 0.45;
     const gap = 1000 / 30 - 3;
     let snap = null;
@@ -6023,6 +6035,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         const now = await nextFrame();
         if (job.stopped) break;
         const ct = v.currentTime;
+        if (o.clipTick) o.clipTick(ct - vid.start);
         if (v.ended || ct >= vid.end - 0.02) { draw(seg, clamp(ct - vid.start, 0, seg.dur), null); break; }
         /* garde-fou : si la vidéo ne bouge plus, on la relance, puis on abandonne avec un message */
         if (ct !== lastCt) { lastCt = ct; moved = now; kicked = false; }
@@ -6176,7 +6189,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       setSlot('p1', poster, 'Vidéo · ' + (file.name || fmtTime(dur)), null);
       syncVideoUi();
       say(dur > VID_MAX
-        ? 'Vidéo ajoutée. Elle dépasse 2 minutes : règle le début et la fin dans Vidéo, puis touche le bouton rouge Créer la vidéo.'
+        ? 'Vidéo ajoutée. Elle dépasse 20 minutes : seules les 20 premières sont gardées, règle le début et la fin dans Vidéo, puis touche le bouton rouge Créer la vidéo.'
         : 'Vidéo ajoutée. Pour obtenir ta vidéo, touche le bouton rouge Créer la vidéo.');
     } catch (e) {
       try { v.removeAttribute('src'); v.load(); } catch (e2) { /* rien */ }
@@ -6308,7 +6321,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   async function clipSound(ac) {
     if (!vid || !vid.file) return { why: 'lost' };
     if (vid.hasAudio === false) return { why: 'none' };
-    if (vid.dur > SOUND_MAX) return { why: 'long' };
+    if (vid.dur > SOUND_MAX || vid.file.size > 150 * 1048576) return { why: 'long' };
     try {
       const data = typeof vid.file.arrayBuffer === 'function'
         ? await vid.file.arrayBuffer()
@@ -6325,6 +6338,324 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     } catch (e) {
       return { why: 'lost' };
     }
+  }
+  /* ---------- son des vidéos longues ----------
+     Dans un MP4 ou un MOV (iPhone, WhatsApp, Facebook), on lit seulement les octets de la piste son AAC,
+     sans charger la vidéo en mémoire, puis on les décode par tranches de 30 secondes, juste avant
+     qu'elles servent. Une vidéo d'une heure ne pèse ainsi que quelques Mo de son à la fois. */
+  const SOUND_WIN = 30;
+  const fourcc = (dv, p) => String.fromCharCode(dv.getUint8(p), dv.getUint8(p + 1), dv.getUint8(p + 2), dv.getUint8(p + 3));
+  async function readBytes(file, a, b) {
+    const part = file.slice(a, b);
+    if (typeof part.arrayBuffer === 'function') return part.arrayBuffer();
+    return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsArrayBuffer(part); });
+  }
+  function boxSize(dv, p, end) {
+    let size = dv.getUint32(p);
+    let hdr = 8;
+    if (size === 1) { size = dv.getUint32(p + 8) * 4294967296 + dv.getUint32(p + 12); hdr = 16; }
+    else if (size === 0) size = end - p;
+    return { size, hdr };
+  }
+  async function findMoov(file) {
+    let p = 0;
+    const n = file.size;
+    for (let guard = 0; guard < 200 && p + 8 <= n; guard++) {
+      const dv = new DataView(await readBytes(file, p, Math.min(n, p + 16)));
+      if (dv.byteLength < 8) return null;
+      const { size, hdr } = boxSize(dv, 0, n - p);
+      const type = fourcc(dv, 4);
+      if (size < hdr) return null;
+      if (type === 'moov') return size > 64 * 1048576 ? null : new DataView(await readBytes(file, p, p + size));
+      p += size;
+    }
+    return null;
+  }
+  function boxesIn(dv, a, b) {
+    const out = [];
+    let p = a;
+    while (p + 8 <= b) {
+      const { size, hdr } = boxSize(dv, p, b);
+      if (size < hdr || p + size > b) break;
+      out.push({ type: fourcc(dv, p + 4), a: p + hdr, b: p + size });
+      p += size;
+    }
+    return out;
+  }
+  const boxIn = (dv, a, b, type) => boxesIn(dv, a, b).find((x) => x.type === type) || null;
+  function fullTimescale(dv, box) {
+    return dv.getUint8(box.a) === 1 ? dv.getUint32(box.a + 20) : dv.getUint32(box.a + 12);
+  }
+  /* réglages AAC lus dans l'en-tête « esds » : profil, fréquence, canaux */
+  function aacConfig(dv, a, b) {
+    const u8 = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+    let p = -1;
+    for (let i = a; i + 4 <= b; i++) {
+      if (u8[i] === 0x65 && u8[i + 1] === 0x73 && u8[i + 2] === 0x64 && u8[i + 3] === 0x73) { p = i + 8; break; }
+    }
+    if (p < 0) return null;
+    const len = () => { let v = 0; for (let k = 0; k < 4; k++) { const x = u8[p++]; v = (v << 7) | (x & 0x7f); if (!(x & 0x80)) break; } return v; };
+    let asc = null;
+    while (p < b - 2 && !asc) {
+      const tag = u8[p++];
+      const l = len();
+      if (tag === 0x03) {
+        p += 2;
+        const fl = u8[p++];
+        if (fl & 0x80) p += 2;
+        if (fl & 0x40) p += 1 + u8[p];
+        if (fl & 0x20) p += 2;
+      } else if (tag === 0x04) {
+        const oti = u8[p];
+        if (oti !== 0x40 && oti !== 0x66 && oti !== 0x67 && oti !== 0x68) return null;
+        p += 13;
+      } else if (tag === 0x05) {
+        asc = u8.subarray(p, p + l);
+      } else {
+        p += l;
+      }
+    }
+    if (!asc || asc.length < 2) return null;
+    let bit = 0;
+    const bits = (n) => { let v = 0; for (let k = 0; k < n; k++) { v = (v << 1) | ((asc[bit >> 3] >> (7 - (bit & 7))) & 1); bit++; } return v; };
+    let aot = bits(5);
+    if (aot === 31) aot = 32 + bits(6);
+    const sfi = bits(4);
+    if (sfi === 15) return null;
+    const ch = bits(4);
+    if (aot === 5 || aot === 29) {
+      if (bits(4) === 15) bits(24);
+      aot = bits(5);
+      if (aot === 31) aot = 32 + bits(6);
+    }
+    if (aot < 1 || aot > 4 || ch < 1 || ch > 7) return null;
+    return { profile: aot - 1, sfi, ch };
+  }
+  /* table des échantillons AAC de la piste son : position, taille et instant de chacun */
+  function audioTrackOf(moov) {
+    const dv = moov;
+    const top = boxesIn(dv, boxSize(dv, 0, dv.byteLength).hdr, dv.byteLength);
+    const mvhd = top.find((x) => x.type === 'mvhd');
+    const movieTs = mvhd ? fullTimescale(dv, mvhd) : 1000;
+    for (const trak of top.filter((x) => x.type === 'trak')) {
+      const mdia = boxIn(dv, trak.a, trak.b, 'mdia');
+      if (!mdia) continue;
+      const hdlr = boxIn(dv, mdia.a, mdia.b, 'hdlr');
+      if (!hdlr || fourcc(dv, hdlr.a + 8) !== 'soun') continue;
+      const mdhd = boxIn(dv, mdia.a, mdia.b, 'mdhd');
+      const minf = boxIn(dv, mdia.a, mdia.b, 'minf');
+      const stbl = minf && boxIn(dv, minf.a, minf.b, 'stbl');
+      if (!mdhd || !stbl) continue;
+      const ts = fullTimescale(dv, mdhd);
+      const sb = boxesIn(dv, stbl.a, stbl.b);
+      const get = (t) => sb.find((x) => x.type === t);
+      const stsd = get('stsd');
+      const cfg = stsd && aacConfig(dv, stsd.a, stsd.b);
+      if (!cfg) continue;
+      const stts = get('stts');
+      const stsc = get('stsc');
+      const stsz = get('stsz');
+      const stco = get('stco') || get('co64');
+      if (!stts || !stsc || !stsz || !stco || !ts) continue;
+      /* tailles */
+      const fixed = dv.getUint32(stsz.a + 4);
+      const n = dv.getUint32(stsz.a + 8);
+      if (!n) continue;
+      const size = new Uint32Array(n);
+      for (let i = 0; i < n; i++) size[i] = fixed || dv.getUint32(stsz.a + 12 + i * 4);
+      /* instants */
+      const time = new Float64Array(n + 1);
+      let dts = 0;
+      let i = 0;
+      const ne = dv.getUint32(stts.a + 4);
+      for (let e = 0; e < ne && i < n; e++) {
+        const cnt = dv.getUint32(stts.a + 8 + e * 8);
+        const dl = dv.getUint32(stts.a + 12 + e * 8);
+        for (let k = 0; k < cnt && i < n; k++, i++) { time[i] = dts; dts += dl; }
+      }
+      for (; i <= n; i++) time[i] = dts;
+      /* décalage éventuel de la liste d'éditions (elst) */
+      let shift = 0;
+      const edts = boxIn(dv, trak.a, trak.b, 'edts');
+      const elst = edts && boxIn(dv, edts.a, edts.b, 'elst');
+      if (elst) {
+        const v1 = dv.getUint8(elst.a) === 1;
+        const cnt = dv.getUint32(elst.a + 4);
+        let q = elst.a + 8;
+        for (let e = 0; e < cnt; e++) {
+          const segDur = v1 ? dv.getUint32(q) * 4294967296 + dv.getUint32(q + 4) : dv.getUint32(q);
+          const mt = v1 ? dv.getInt32(q + 8) * 4294967296 + dv.getUint32(q + 12) : dv.getInt32(q + 4);
+          q += v1 ? 20 : 12;
+          if (mt === -1) { shift += segDur / movieTs; continue; }
+          shift -= mt / ts;
+          break;
+        }
+      }
+      for (let k = 0; k <= n; k++) time[k] = time[k] / ts + shift;
+      /* positions dans le fichier */
+      const co64 = stco.type === 'co64';
+      const nc = dv.getUint32(stco.a + 4);
+      const chunk = (c) => (co64 ? dv.getUint32(stco.a + 8 + c * 8) * 4294967296 + dv.getUint32(stco.a + 12 + c * 8) : dv.getUint32(stco.a + 8 + c * 4));
+      const off = new Float64Array(n);
+      const nsc = dv.getUint32(stsc.a + 4);
+      let s = 0;
+      for (let e = 0; e < nsc && s < n; e++) {
+        const first = dv.getUint32(stsc.a + 8 + e * 12) - 1;
+        const per = dv.getUint32(stsc.a + 12 + e * 12);
+        const last = e + 1 < nsc ? dv.getUint32(stsc.a + 8 + (e + 1) * 12) - 1 : nc;
+        for (let c = first; c < last && s < n; c++) {
+          let o = chunk(c);
+          for (let k = 0; k < per && s < n; k++, s++) { off[s] = o; o += size[s]; }
+        }
+      }
+      if (s < n) continue;
+      return { n, size, off, time, profile: cfg.profile, sfi: cfg.sfi, ch: cfg.ch };
+    }
+    return null;
+  }
+  async function aacTrackOf(file) {
+    try {
+      const moov = await findMoov(file);
+      return moov ? audioTrackOf(moov) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  /* trames [a, b) en flux ADTS, avec 3 trames de marge de chaque côté, décodées puis recoupées net */
+  async function decodeAacPart(ac, file, tr, a, b) {
+    const a0 = Math.max(0, a - 3);
+    const b0 = Math.min(tr.n, b + 3);
+    let total = 0;
+    for (let i = a0; i < b0; i++) total += 7 + tr.size[i];
+    const out = new Uint8Array(total);
+    let w = 0;
+    let i = a0;
+    while (i < b0) {
+      let j = i + 1;
+      let end = tr.off[i] + tr.size[i];
+      while (j < b0 && tr.off[j] === end && end - tr.off[i] < 2e6) { end += tr.size[j]; j++; }
+      const bytes = new Uint8Array(await readBytes(file, tr.off[i], end));
+      let q = 0;
+      for (let k = i; k < j; k++) {
+        const len = tr.size[k];
+        const fl = len + 7;
+        out[w] = 0xff;
+        out[w + 1] = 0xf1;
+        out[w + 2] = ((tr.profile & 3) << 6) | ((tr.sfi & 15) << 2) | ((tr.ch >> 2) & 1);
+        out[w + 3] = ((tr.ch & 3) << 6) | ((fl >> 11) & 3);
+        out[w + 4] = (fl >> 3) & 0xff;
+        out[w + 5] = ((fl & 7) << 5) | 0x1f;
+        out[w + 6] = 0xfc;
+        out.set(bytes.subarray(q, q + len), w + 7);
+        w += fl;
+        q += len;
+      }
+      i = j;
+    }
+    const full = await Promise.race([decodeAudio(ac, out.buffer), pause(20000).then(() => null)]);
+    if (!full || !full.length) throw new Error('decode');
+    const sr = full.sampleRate;
+    const s0 = clamp(Math.round((tr.time[a] - tr.time[a0]) * sr), 0, full.length);
+    const s1 = clamp(Math.round((tr.time[b] - tr.time[a0]) * sr), s0 + 1, full.length);
+    const buf = ac.createBuffer(full.numberOfChannels, s1 - s0, sr);
+    for (let ch = 0; ch < full.numberOfChannels; ch++) buf.getChannelData(ch).set(full.getChannelData(ch).subarray(s0, s1));
+    return buf;
+  }
+  /* lecture du son en phase avec la vidéo : tranches décodées d'avance, recalage si l'écart dépasse 0,3 s */
+  function soundStream(ac, dest, src, S, E) {
+    const LAT = 0.06;
+    /* l'image captée arrive environ un dixième de seconde après le son : on retarde un peu le son */
+    const LAG = 0.07;
+    const parts = [];
+    if (src.kind === 'pcm') {
+      parts.push({ c0: 0, c1: src.buf.duration, buf: src.buf, state: 'ready', node: null });
+    } else {
+      const tr = src.tr;
+      let a = 0;
+      while (a < tr.n - 1 && tr.time[a + 1] <= S) a++;
+      let z = a;
+      while (z < tr.n && tr.time[z] < E) z++;
+      const per = Math.max(8, Math.round(SOUND_WIN / Math.max(1e-3, (tr.time[Math.min(tr.n, a + 1)] - tr.time[a]) || 0.021)));
+      for (let x = a; x < z; x += per) {
+        const y = Math.min(z, x + per);
+        parts.push({ a: x, b: y, c0: tr.time[x] - S, c1: tr.time[y] - S, buf: null, state: '', node: null });
+      }
+    }
+    let base = 0;
+    let on = false;
+    const play = (p) => {
+      if (!on || !p.buf || p.node) return;
+      const now = ac.currentTime;
+      let when = base + p.c0;
+      let from = 0;
+      if (when < now + LAT) { from = now + LAT - when; when = now + LAT; }
+      if (from >= p.buf.duration) return;
+      try {
+        const node = ac.createBufferSource();
+        node.buffer = p.buf;
+        node.connect(dest);
+        node.start(when, from);
+        p.node = node;
+      } catch (e) { /* tranche perdue */ }
+    };
+    const load = (k) => {
+      const p = parts[k];
+      if (!p || p.state) return p ? p.promise : null;
+      p.state = 'loading';
+      p.promise = decodeAacPart(ac, src.file, src.tr, p.a, p.b).then((buf) => { p.buf = buf; p.state = 'ready'; play(p); }, () => { p.state = 'failed'; });
+      return p.promise;
+    };
+    const indexAt = (t) => { let k = 0; while (k < parts.length - 1 && parts[k].c1 <= t) k++; return k; };
+    const halt = () => { for (const p of parts) if (p.node) { try { p.node.stop(); p.node.disconnect(); } catch (e) { /* déjà fini */ } p.node = null; } };
+    return {
+      async prime() {
+        if (!parts.length) return false;
+        await load(0);
+        return parts[0].state === 'ready';
+      },
+      start(t) {
+        base = ac.currentTime - t + LAG;
+        on = true;
+        const k = indexAt(t);
+        load(k);
+        load(k + 1);
+        for (const p of parts) play(p);
+      },
+      tick(t) {
+        if (!on) return;
+        if (Math.abs(ac.currentTime - base + LAG - t) > 0.3) {
+          halt();
+          base = ac.currentTime - t + LAG;
+          for (const p of parts) play(p);
+        }
+        const k = indexAt(t);
+        load(k);
+        load(k + 1);
+        for (let x = 0; x < k - 1; x++) {
+          const p = parts[x];
+          if (p.buf && !p.node) p.buf = null;
+          if (p.node && p.c1 < t - 2) { try { p.node.disconnect(); } catch (e) { /* rien */ } p.node = null; p.buf = null; }
+        }
+      },
+      stop() { on = false; halt(); }
+    };
+  }
+  /* le son de l'extrait : piste AAC lue par tranches, sinon décodage complet pour les petits fichiers */
+  async function prepareSound(ac, dest) {
+    if (!vid || !vid.file) return { why: 'lost' };
+    if (vid.hasAudio === false) return { why: 'none' };
+    const tr = await aacTrackOf(vid.file);
+    if (tr) {
+      const s = soundStream(ac, dest, { kind: 'aac', tr, file: vid.file }, vid.start, vid.end);
+      if (await s.prime()) return { stream: s };
+    }
+    const got = await clipSound(ac);
+    if (got.buf) {
+      const s = soundStream(ac, dest, { kind: 'pcm', buf: got.buf }, vid.start, vid.end);
+      await s.prime();
+      return { stream: s };
+    }
+    return { why: got.why === 'long' && !tr ? 'format' : got.why || 'lost' };
   }
   /* appelé dans le geste de l'utilisateur : iPhone n'autorise la lecture et le son qu'à ce moment-là */
   function unlockClip() {
@@ -6354,13 +6685,19 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     return null;
   }
   let lastPct = -1;
+  let progTotal = 0;
   function showProgress(p) {
     const pct = Math.round(clamp(p, 0, 1) * 100);
     $('vid-progress').hidden = false;
     $('vid-meter').style.width = pct + '%';
-    if (pct === lastPct || (pct % 5 && pct !== 100 && lastPct >= 0 && pct > lastPct && pct - lastPct < 5)) return;
+    if (pct === lastPct) return;
     lastPct = pct;
-    $('vid-progress-text').textContent = 'Création de la vidéo… ' + pct + NNB + '%';
+    /* pour une longue vidéo, le temps restant compte plus que le pourcentage */
+    const left = progTotal * (1 - clamp(p, 0, 1));
+    const rest = progTotal >= 60 && pct < 100
+      ? ' · encore ' + (left >= 90 ? Math.ceil(left / 60) + NNB + 'min' : Math.max(1, Math.round(left)) + NNB + 's')
+      : '';
+    $('vid-progress-text').textContent = 'Création de la vidéo… ' + pct + NNB + '%' + rest;
   }
   const STOP_MSG = {
     user: 'Vidéo arrêtée.',
@@ -6371,9 +6708,17 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   };
   const SOUND_MSG = {
     none: 'La vidéo d’origine n’a pas de son.',
-    long: 'Le son n’est gardé que pour les vidéos de 5 minutes au plus : raccourcis la vidéo avant de l’importer.',
+    long: 'Le son de cette vidéo n’a pas pu être lu : elle est trop lourde pour ce format. Envoie-la-toi par WhatsApp, réimporte-la, puis recrée la vidéo.',
+    format: 'Pour une vidéo de plus de 5 minutes, le son n’est gardé qu’en MP4 ou MOV : envoie-la-toi par WhatsApp, réimporte-la, puis recrée la vidéo.',
     lost: 'Le son n’a pas pu être ajouté, ou la vidéo d’origine n’en a pas : la vidéo est muette.'
   };
+  /* débit selon la durée : les longues vidéos restent légères pour la mémoire du téléphone */
+  function bitrateFor(total) {
+    if (total <= 45) return 6000000;
+    if (total <= 120) return 4000000;
+    if (total <= 300) return 3000000;
+    return 1600000;
+  }
   async function makeVideo() {
     if (vbusy) return;
     if (!canRecord) { say('Ce navigateur ne sait pas créer de vidéo. Sur iPhone, il faut iOS 14.5 ou plus récent ; sinon, utilise Chrome à jour.'); return; }
@@ -6394,9 +6739,14 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     try {
       plan = buildPlan();
       filming.on = true;
+      progTotal = plan.total;
+      /* au-delà de 5 minutes, on filme en 720 px de large : moins de calcul et un fichier plus léger */
+      RK = plan.total > 300 ? 2 / 3 : 1;
       /* on filme l'aperçu lui-même : un canevas visible, ce que Safari capte le plus sûrement */
-      if (canvas.width !== plan.W) canvas.width = plan.W;
-      if (canvas.height !== plan.H) canvas.height = plan.H;
+      const cw = Math.round(plan.W * RK);
+      const ch = Math.round(plan.H * RK);
+      if (canvas.width !== cw) canvas.width = cw;
+      if (canvas.height !== ch) canvas.height = ch;
       stream = canvas.captureStream(30);
       if (plan.sound) {
         showProgress(0);
@@ -6404,24 +6754,25 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         const ac = audioCtx();
         if (ac) {
           if (ac.state !== 'running') { try { await Promise.race([ac.resume(), pause(1500)]); } catch (e) { /* rien */ } }
-          const got = await clipSound(ac);
-          if (got.buf && ac.state === 'running') {
-            try {
-              dest = ac.createMediaStreamDestination();
-              const tr = dest.stream.getAudioTracks()[0];
-              if (tr) { stream.addTrack(tr); sound = { ac, buf: got.buf, node: null }; } else dest = null;
-            } catch (e) {
-              dest = null;
-            }
+          if (ac.state === 'running') {
+            try { dest = ac.createMediaStreamDestination(); } catch (e) { dest = null; }
           }
-          if (!sound) soundWhy = got.why || 'lost';
+          if (dest) {
+            const got = await prepareSound(ac, dest);
+            const tr = dest.stream.getAudioTracks()[0];
+            if (got.stream && tr) { stream.addTrack(tr); sound = got.stream; }
+            else soundWhy = got.why || 'lost';
+          } else {
+            soundWhy = 'lost';
+          }
+          if (!sound) dest = null;
         } else {
           soundWhy = 'lost';
         }
         lastPct = -1;
       }
       const mime = pickMime(!!dest);
-      const bps = plan.total > 45 ? 4000000 : 6000000;
+      const bps = bitrateFor(plan.total);
       try {
         rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: bps, audioBitsPerSecond: 128000 } : { videoBitsPerSecond: bps });
       } catch (e) {
@@ -6430,22 +6781,16 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
       const stopped = new Promise((resolve) => { rec.onstop = resolve; rec.onerror = resolve; });
       showProgress(0);
-      say('Garde l’écran allumé et reste sur la page pendant la création.');
+      say(plan.total > 120
+        ? 'La création dure ' + fmtTime(plan.total) + ' : branche le téléphone, garde l’écran allumé et reste sur la page. Sur iPhone, règle «' + NB + 'Verrouillage automatique' + NB + '» sur Jamais pendant ce temps.'
+        : 'Garde l’écran allumé et reste sur la page pendant la création.');
       lock = await keepAwake();
       job = await runPlan(plan, canvas, {
         start: () => { try { rec.start(1000); } catch (e) { rec.start(); } },
-        /* le son démarre à l'endroit exact où en est la vidéo */
-        clipStart: (offset) => {
-          if (!sound || !dest) return;
-          try {
-            const node = sound.ac.createBufferSource();
-            node.buffer = sound.buf;
-            node.connect(dest);
-            node.start(0, clamp(offset, 0, sound.buf.duration));
-            sound.node = node;
-          } catch (e) { /* vidéo sans son */ }
-        },
-        clipStop: () => { if (sound && sound.node) { try { sound.node.stop(); } catch (e) { /* déjà fini */ } } },
+        /* le son démarre à l'endroit exact où en est la vidéo, et s'y recale en route */
+        clipStart: (offset) => { if (sound) sound.start(offset); },
+        clipTick: (t) => { if (sound) sound.tick(t); },
+        clipStop: () => { if (sound) sound.stop(); },
         frame: (p) => { showProgress(p); if (!mini.hidden) drawMini(); }
       });
       await pause(160);
@@ -6457,10 +6802,11 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       job = job || { stopped: true, reason: 'error' };
     } finally {
       if (stream) for (const tr of stream.getTracks()) { try { tr.stop(); } catch (e) { /* rien */ } }
-      if (sound && sound.node) { try { sound.node.stop(); sound.node.disconnect(); } catch (e) { /* rien */ } }
+      if (sound) { try { sound.stop(); } catch (e) { /* rien */ } }
       sound = null;
       try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) { /* rien */ }
       if (lock) { try { lock.release(); } catch (e) { /* rien */ } }
+      RK = 1;
       vbusy = false;
       filming.on = false;
       $('vid-progress').hidden = true;
