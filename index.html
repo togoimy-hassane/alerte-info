@@ -4219,6 +4219,15 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   let monitorVisible = true;
   let typing = false;
   const narrowMq = (() => { try { return window.matchMedia('(max-width: 899px)'); } catch (e) { return { matches: false }; } })();
+  /* pendant une vidéo, la miniature suit à 4 images par seconde : assez pour voir où on en est */
+  let miniAt = 0;
+  function miniTick() {
+    if (mini.hidden) return;
+    const now = performance.now();
+    if (now - miniAt < 250) return;
+    miniAt = now;
+    drawMini();
+  }
   function drawMini() {
     const f = FORMATS[state.format];
     const w = 184;
@@ -5811,7 +5820,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     }
     c.restore();
   }
-  function replayScene(c, sc, t, A, flat) {
+  function replayScene(c, sc, t, A, flat, keep) {
     const ops = sc.ops;
     for (let i = 0; i < ops.length; i++) {
       const op = ops[i];
@@ -5821,7 +5830,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         continue;
       }
       const m = op.m;
-      if (m === 'photo') { paintPhotoOp(c, sc, op, t, A, flat); continue; }
+      if (m === 'photo') { if (!keep || keep(op, i)) paintPhotoOp(c, sc, op, t, A, flat); continue; }
+      /* un calque ne garde que ses propres traits ; les chemins et les découpes restent tracés pour tous */
+      if (keep && REC_DRAW[m] && m !== 'clearRect' && !keep(op, i)) continue;
       if (RK !== 1 && (m === 'setTransform' || m === 'resetTransform')) {
         const a = op.a;
         if (m === 'resetTransform') c.setTransform(RK, 0, 0, RK, 0, 0);
@@ -5860,14 +5871,150 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     cv.width = W;
     cv.height = H;
     const c = cv.getContext('2d');
-    replayScene(c, sc, 1e6, null, true);
+    const I = sc.intro;
+    if (I && I.runs && I.W === W && I.H === H && I.mode === sc.mode) {
+      /* les calques de l'entrée donnent le visuel fixe sans rien redessiner */
+      drawLayers(c, I, 0, null);
+      freeIntro(sc);
+    } else {
+      replayScene(c, sc, 1e6, null, true);
+    }
     resetCtx(c);
     sc.flat = cv;
     sc.flatMode = sc.mode;
     return cv;
   }
+  /* ---------- entrée animée légère ----------
+     Le visuel est découpé en calques, dans l'ordre exact où il se dessine : le décor (fond, panneaux,
+     photo percée), puis chaque élément (logo, étiquette, chaque ligne du titre...) dans sa vignette,
+     ombres comprises. Tout est dessiné une seule fois avant la lecture ; pendant la vidéo, on ne fait
+     plus que poser ces vignettes : l'iPhone garde assez de souffle pour faire avancer la vidéo. */
+  const ITEM_GROUPS = { brand: 1, badge: 1, figure: 1, kicker: 1, title: 1, body: 1, after: 1, small: 1, footer: 1 };
+  let inkHalf = null;
+  let inkQuarter = null;
+  /* carte de l'encre au quart : deux réductions de moitié font une vraie moyenne, aucun trait fin ne se perd */
+  function inkMap(cv) {
+    if (!inkHalf) { inkHalf = document.createElement('canvas'); inkQuarter = document.createElement('canvas'); }
+    const w2 = Math.max(1, Math.round(cv.width / 2));
+    const h2 = Math.max(1, Math.round(cv.height / 2));
+    const w = Math.max(1, Math.round(w2 / 2));
+    const h = Math.max(1, Math.round(h2 / 2));
+    inkHalf.width = w2;
+    inkHalf.height = h2;
+    const hc = inkHalf.getContext('2d');
+    hc.clearRect(0, 0, w2, h2);
+    hc.drawImage(cv, 0, 0, w2, h2);
+    inkQuarter.width = w;
+    inkQuarter.height = h;
+    const qc = inkQuarter.getContext('2d', { willReadFrequently: true });
+    qc.clearRect(0, 0, w, h);
+    qc.drawImage(inkHalf, 0, 0, w, h);
+    return { qx: w / cv.width, qy: h / cv.height, w, h, d: qc.getImageData(0, 0, w, h).data };
+  }
+  /* rectangle encré, en pixels réels, avec une marge pour les bords flous des ombres */
+  function inkBox(map, W, H) {
+    const d = map.d;
+    let x0 = map.w;
+    let x1 = -1;
+    let y0 = -1;
+    let y1 = -1;
+    for (let y = 0; y < map.h; y++) {
+      const row = y * map.w * 4;
+      let any = false;
+      for (let x = 0; x < map.w; x++) {
+        if (d[row + x * 4 + 3] > 1) {
+          any = true;
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+        }
+      }
+      if (any) { if (y0 < 0) y0 = y; y1 = y; }
+    }
+    if (x1 < 0) return null;
+    const pad = 2;
+    const x = clamp(Math.floor((x0 - pad) / map.qx), 0, W - 1);
+    const y = clamp(Math.floor((y0 - pad) / map.qy), 0, H - 1);
+    const r = clamp(Math.ceil((x1 + 1 + pad) / map.qx), x + 1, W);
+    const b = clamp(Math.ceil((y1 + 1 + pad) / map.qy), y + 1, H);
+    return { x, y, w: r - x, h: b - y };
+  }
+  function cropCanvas(cv, b) {
+    const out = document.createElement('canvas');
+    out.width = b.w;
+    out.height = b.h;
+    out.getContext('2d').drawImage(cv, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+    return out;
+  }
+  /* les calques d'une scène ; null si le découpage est impossible (on redessine alors tout, comme avant) */
+  function buildIntro(sc, W, H) {
+    const I0 = sc.intro;
+    if (I0 && I0.W === W && I0.H === H && I0.mode === sc.mode) return I0.runs ? I0 : null;
+    freeIntro(sc);
+    const ops = sc.ops;
+    const runs = [];
+    let tmp = null;
+    try {
+      /* le décor va au moins jusqu'à la dernière photo vivante : son trou doit traverser tout ce qui est dessous */
+      let floor = -1;
+      for (let i = 0; i < ops.length; i++) if (ops[i].m === 'photo' && isLive(sc, ops[i])) floor = i;
+      for (let i = 0; i < ops.length; i++) {
+        const op = ops[i];
+        const m = op.m;
+        if (m !== 'photo' && !(REC_DRAW[m] && m !== 'clearRect')) continue;
+        const key = i <= floor || m === 'photo' || !ITEM_GROUPS[op.g] ? '' : op.g + ':' + op.s;
+        const last = runs[runs.length - 1];
+        if (last && last.key === key) last.to = i;
+        else runs.push({ key, g: op.g, s: op.s, from: i, to: i, cv: null, x: 0, y: 0 });
+      }
+      tmp = document.createElement('canvas');
+      tmp.width = W;
+      tmp.height = H;
+      const tc = tmp.getContext('2d');
+      for (const r of runs) {
+        resetCtx(tc);
+        tc.clearRect(0, 0, W, H);
+        replayScene(tc, sc, 1e6, null, true, (op, i) => i >= r.from && i <= r.to);
+        resetCtx(tc);
+        const b = inkBox(inkMap(tmp), W, H);
+        if (b) { r.cv = cropCanvas(tmp, b); r.x = b.x; r.y = b.y; }
+      }
+    } catch (e) {
+      for (const r of runs) if (r.cv) { r.cv.width = 0; r.cv.height = 0; }
+      sc.intro = { W, H, mode: sc.mode, runs: null };
+      return null;
+    } finally {
+      if (tmp) { tmp.width = 0; tmp.height = 0; }
+    }
+    sc.intro = { W, H, mode: sc.mode, runs: runs.filter((r) => r.cv) };
+    return sc.intro;
+  }
+  /* pose les calques ; avec A, chacun entre en scène à son heure */
+  function drawLayers(c, I, t, A) {
+    for (const r of I.runs) {
+      let a = 1;
+      let dx = 0;
+      let dy = 0;
+      if (A) {
+        if (!r.key) a = A.baseA(t);
+        else {
+          const fx = A.fx(r.g, r.s, t);
+          if (fx) { a = fx.a; dx = fx.dx; dy = fx.dy; }
+        }
+      }
+      if (a <= 0.003) continue;
+      c.globalAlpha = a;
+      c.drawImage(r.cv, Math.round(r.x + dx * RK), Math.round(r.y + dy * RK));
+    }
+    c.globalAlpha = 1;
+  }
+  function freeIntro(sc) {
+    if (!sc || !sc.intro) return;
+    for (const r of sc.intro.runs || []) { r.cv.width = 0; r.cv.height = 0; }
+    sc.intro = null;
+  }
   function freeScene(sc) {
     if (!sc) return;
+    freeIntro(sc);
     if (sc.flat) { sc.flat.width = 0; sc.flat.height = 0; sc.flat = null; }
     for (const op of sc.photos) {
       if (op.cache) { op.cache.width = 0; op.cache.height = 0; op.cache = null; }
@@ -5888,6 +6035,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const D = o.dur || 0;
     return {
       end: intro ? tAfter + 0.75 : 0,
+      baseA: (t) => (intro ? span(t, 0, 0.45) : 1),
       photoA: (t) => (still ? easeOut(span(t, 0, 0.6)) : 1),
       zoom: (t) => (still && D ? 1 + 0.07 * Math.sin((Math.PI / 2) * clamp(t / D, 0, 1)) : 1),
       fx(g, s, t) {
@@ -5915,13 +6063,29 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     c.fillStyle = BLACK;
     c.fillRect(0, 0, w, h);
     if (A && t < A.end) {
-      replayScene(c, sc, t, A, false);
+      const I = buildIntro(sc, w, h);
+      if (!I) {
+        replayScene(c, sc, t, A, false);
+        resetCtx(c);
+        return;
+      }
+      for (const op of sc.photos) if (isLive(sc, op)) paintPhotoOp(c, sc, op, t, A, false);
       resetCtx(c);
+      drawLayers(c, I, t, A);
       return;
     }
     for (const op of sc.photos) if (isLive(sc, op)) paintPhotoOp(c, sc, op, t, A, false);
     resetCtx(c);
     c.drawImage(flatOf(sc, w, h), 0, 0);
+  }
+  /* tout ce qu'une page demande est dessiné à l'avance, hors du temps filmé */
+  function prepSeg(seg, W, H) {
+    if (!seg || seg.ready) return;
+    seg.ready = true;
+    const sc = seg.sc;
+    for (const op of sc.photos) if (sc.mode !== 'video' && isLive(sc, op)) photoCache(op);
+    if (seg.anim && seg.anim.end > 0 && buildIntro(sc, W, H)) return;
+    flatOf(sc, W, H);
   }
   function drawBar(c, p, W) {
     const bh = Math.max(4, Math.round(8 * RK));
@@ -5975,7 +6139,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   let vjob = null;
   const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
   async function runPlan(plan, out, o) {
-    const job = { stopped: false, reason: '' };
+    const job = { stopped: false, reason: '', diag: '' };
     vjob = job;
     const c = out.getContext('2d');
     const W = out.width;
@@ -5984,7 +6148,10 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const gap = 1000 / 30 - 3;
     let snap = null;
     let pageB = null;
+    let cost = 0;
+    let frames = 0;
     const draw = (seg, t, prev) => {
+      const t0 = performance.now();
       if (prev && t < TRANS) {
         const bc = pageB.getContext('2d');
         drawSegAt(bc, seg, t);
@@ -6007,46 +6174,110 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       const T = seg.t0 + t;
       if (state.vidBar && state.format !== 'story') drawBar(c, T / plan.total, W);
       if (o.frame) o.frame(T / plan.total);
+      frames++;
+      cost = cost * 0.85 + (performance.now() - t0) * 0.15;
     };
-    const playStill = async (seg, prev) => {
+    /* un téléphone essoufflé : on espace les images plutôt que d'étouffer la lecture */
+    const wait = () => Math.max(gap, cost * 1.6);
+    const playStill = async (seg, prev, next) => {
       const start = performance.now();
+      const calm = Math.max(TRANS, seg.anim ? seg.anim.end : 0) + 0.2;
       let last = -1e9;
       for (;;) {
         const now = await nextFrame();
         if (job.stopped) return;
         const t = (now - start) / 1000;
         if (t >= seg.dur) { draw(seg, seg.dur, null); return; }
-        if (now - last < gap) continue;
+        if (now - last < wait()) continue;
         last = now;
         draw(seg, Math.max(0, t), prev);
+        /* la page suivante se prépare pendant que celle-ci ne bouge presque plus */
+        if (next && !next.ready && t > calm) prepSeg(next, W, H);
       }
     };
-    const playClip = async (seg) => {
-      const v = vid.el;
-      v.muted = true;
-      if (!(await playSafe(v, 5000)) && !(await playSafe(v, 4000))) { job.stopped = true; job.reason = 'play'; return; }
-      if (job.stopped) return;
-      if (o.clipStart) o.clipStart(v.currentTime - vid.start);
-      let last = -1e9;
-      let lastCt = v.currentTime;
-      let moved = performance.now();
-      let kicked = false;
-      for (;;) {
-        const now = await nextFrame();
-        if (job.stopped) break;
-        const ct = v.currentTime;
-        if (o.clipTick) o.clipTick(ct - vid.start);
-        if (v.ended || ct >= vid.end - 0.02) { draw(seg, clamp(ct - vid.start, 0, seg.dur), null); break; }
-        /* garde-fou : si la vidéo ne bouge plus, on la relance, puis on abandonne avec un message */
-        if (ct !== lastCt) { lastCt = ct; moved = now; kicked = false; }
-        else if (now - moved > 9000) { job.stopped = true; job.reason = 'stall'; break; }
-        else if (now - moved > 3000 && !kicked) { kicked = true; playSafe(v, 3000); }
-        if (now - last < gap) continue;
-        last = now;
-        draw(seg, Math.max(0, ct - vid.start), null);
+    /* ce que la vidéo source a fait, pour le code affiché si la lecture coince */
+    const VEV = ['waiting', 'stalled', 'pause', 'playing', 'seeking', 'suspend', 'emptied', 'error'];
+    const diagOf = (v, ev, ct) => {
+      const e = VEV.filter((n) => ev[n]).map((n) => n.slice(0, 2) + ev[n]).join('');
+      return 'rs' + v.readyState + ' ns' + v.networkState + ' p' + (v.paused ? 1 : 0)
+        + ' t' + Math.max(0, ct - vid.start).toFixed(1) + ' i' + frames + ' d' + Math.round(cost)
+        + (e ? ' ' + e : '') + (v.error ? ' er' + v.error.code : '') + ' ' + v.videoWidth + 'x' + v.videoHeight;
+    };
+    /* relance d'une lecture figée : d'abord play, puis un petit saut en avant */
+    const nudge = (v, ct, k) => {
+      if (k > 1 && !v.paused) {
+        try { v.currentTime = Math.min(Math.max(vid.start, vid.end - 0.05), ct + 0.08 * k); } catch (e) { /* rien */ }
       }
-      try { v.pause(); } catch (e) { /* déjà en pause */ }
-      if (o.clipStop) o.clipStop();
+      playSafe(v, 3000);
+    };
+    const playClip = async (seg, first) => {
+      const v = vid.el;
+      const ev = {};
+      const onEv = (e) => { ev[e.type] = (ev[e.type] || 0) + 1; };
+      for (const n of VEV) v.addEventListener(n, onEv);
+      let started = false;
+      let held = false;
+      let lastCt = v.currentTime;
+      try {
+        v.muted = true;
+        /* même si play() rechigne, la boucle surveille le temps de la vidéo et relance au besoin */
+        await playSafe(v, 5000);
+        if (job.stopped) return;
+        lastCt = v.currentTime;
+        let moved = performance.now();
+        let lost = 0;
+        let tries = 0;
+        let last = -1e9;
+        let shown = -1;
+        for (;;) {
+          const now = await nextFrame();
+          if (job.stopped) break;
+          const ct = v.currentTime;
+          const fresh = ct !== lastCt;
+          if (fresh) {
+            if (held) lost += now - moved;
+            lastCt = ct;
+            moved = now;
+            tries = 0;
+            if (!started) {
+              /* on ne filme qu'une fois la vidéo vraiment partie : pas d'image figée au début */
+              started = true;
+              if (first && o.start) o.start();
+              if (o.clipStart) o.clipStart(ct - vid.start);
+            } else if (held) {
+              held = false;
+              if (o.release) o.release(ct - vid.start);
+            }
+          } else {
+            const still = now - moved;
+            /* certaines vidéos s'arrêtent un peu avant la durée qu'elles annoncent : la fin est atteinte */
+            if (started && still > 1500 && ct >= vid.end - 1) { draw(seg, clamp(ct - vid.start, 0, seg.dur), null); break; }
+            /* la vidéo coince : on suspend l'enregistrement et le son, la vidéo finale ne gardera pas l'arrêt */
+            if (started && !held && still > 500) { held = true; if (o.hold) o.hold(); }
+            if (tries < 4 && still > 1000 + 2500 * tries) { tries++; nudge(v, ct, tries); }
+            if (still > (started ? 15000 : 10000) || lost + still > 45000) {
+              job.stopped = true;
+              job.reason = started ? 'stall' : 'play';
+              job.diag = diagOf(v, ev, ct);
+              break;
+            }
+          }
+          if (started && !held && fresh && o.clipTick) o.clipTick(ct - vid.start);
+          if (v.ended || ct >= vid.end - 0.02) { draw(seg, clamp(ct - vid.start, 0, seg.dur), null); break; }
+          /* même instant de la vidéo, même image : rien à redessiner */
+          if (ct === shown) continue;
+          const t = Math.max(0, ct - vid.start);
+          if (now - last < wait()) continue;
+          last = now;
+          shown = ct;
+          draw(seg, t, null);
+        }
+      } finally {
+        for (const n of VEV) v.removeEventListener(n, onEv);
+        try { v.pause(); } catch (e) { /* déjà en pause */ }
+        if (held && !job.stopped && o.release) o.release(Math.max(0, lastCt - vid.start));
+        if (started && o.clipStop) o.clipStop();
+      }
     };
     try {
       const first = plan.segs[0];
@@ -6055,8 +6286,12 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         await seekTo(vid.el, vid.start);
       }
       if (job.stopped) return job;
+      /* les calques des deux premières pages se dessinent avant de filmer */
+      prepSeg(first, W, H);
+      prepSeg(plan.segs[1], W, H);
+      if (job.stopped) return job;
       draw(first, 0, null);
-      if (o.start) o.start();
+      if (first.kind !== 'video' && o.start) o.start();
       for (let k = 0; k < plan.segs.length; k++) {
         const seg = plan.segs[k];
         let prev = null;
@@ -6068,8 +6303,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
           prev = snap;
         }
         if (k > 0) freeScene(plan.segs[k - 1].sc);
-        if (seg.kind === 'video') await playClip(seg);
-        else await playStill(seg, prev);
+        prepSeg(seg, W, H);
+        if (seg.kind === 'video') await playClip(seg, k === 0);
+        else await playStill(seg, prev, plan.segs[k + 1]);
         if (job.stopped) return job;
       }
       job.done = true;
@@ -6666,7 +6902,6 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       if (p && typeof p.catch === 'function') p.catch(() => {});
     } catch (e) { /* on réessaiera */ }
     if (state.vidSound) {
-      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* iOS ancien */ }
       const ac = audioCtx();
       if (ac && ac.state !== 'running') { try { const r = ac.resume(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* rien */ } }
     }
@@ -6688,9 +6923,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   let progTotal = 0;
   function showProgress(p) {
     const pct = Math.round(clamp(p, 0, 1) * 100);
+    if (pct === lastPct) return;
     $('vid-progress').hidden = false;
     $('vid-meter').style.width = pct + '%';
-    if (pct === lastPct) return;
     lastPct = pct;
     /* pour une longue vidéo, le temps restant compte plus que le pourcentage */
     const left = progTotal * (1 - clamp(p, 0, 1));
@@ -6791,7 +7026,16 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         clipStart: (offset) => { if (sound) sound.start(offset); },
         clipTick: (t) => { if (sound) sound.tick(t); },
         clipStop: () => { if (sound) sound.stop(); },
-        frame: (p) => { showProgress(p); if (!mini.hidden) drawMini(); }
+        /* la vidéo source coince : l'enregistrement et le son attendent qu'elle reparte */
+        hold: () => {
+          try { if (rec.state === 'recording' && typeof rec.pause === 'function') rec.pause(); } catch (e) { /* on filme l'arrêt */ }
+          if (sound) sound.stop();
+        },
+        release: (t) => {
+          try { if (rec.state === 'paused') rec.resume(); } catch (e) { /* rien */ }
+          if (sound) sound.start(t);
+        },
+        frame: (p) => { showProgress(p); miniTick(); }
       });
       await pause(160);
       if (rec.state !== 'inactive') {
@@ -6801,10 +7045,13 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     } catch (e) {
       job = job || { stopped: true, reason: 'error' };
     } finally {
+      if (job && job.diag) {
+        const ios = /OS (\d+)_(\d+)/.exec(navigator.userAgent || '');
+        job.diag += ' s' + (sound ? 1 : 0) + ' a' + (actx ? String(actx.state).slice(0, 2) : '-') + (ios ? ' ios' + ios[1] + '.' + ios[2] : '');
+      }
       if (stream) for (const tr of stream.getTracks()) { try { tr.stop(); } catch (e) { /* rien */ } }
       if (sound) { try { sound.stop(); } catch (e) { /* rien */ } }
       sound = null;
-      try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) { /* rien */ }
       if (lock) { try { lock.release(); } catch (e) { /* rien */ } }
       RK = 1;
       vbusy = false;
@@ -6814,7 +7061,8 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       render();
     }
     if (!job || !job.done) {
-      say(STOP_MSG[job && job.reason] || 'La vidéo n’a pas pu être créée. Réessaie.');
+      /* le code aide à comprendre ce qui a coincé sur ce téléphone */
+      say((STOP_MSG[job && job.reason] || 'La vidéo n’a pas pu être créée. Réessaie.') + (job && job.diag ? ' (code' + NB + ': ' + job.diag + ')' : ''));
       return;
     }
     const type = ((rec && rec.mimeType) || pickMime(!!dest) || 'video/webm').split(';')[0] || 'video/webm';
@@ -6841,7 +7089,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     if (canvas.width !== f.w) canvas.width = f.w;
     if (canvas.height !== f.h) canvas.height = f.h;
     try {
-      await runPlan(plan, canvas, { sound: false, frame: () => { if (!mini.hidden) drawMini(); } });
+      await runPlan(plan, canvas, { sound: false, frame: miniTick });
     } catch (e) {
       /* l'aperçu s'arrête, le visuel fixe revient */
     }
