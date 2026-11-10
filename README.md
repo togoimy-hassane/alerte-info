@@ -1,6 +1,6 @@
 # Générateur Alerte Info
 
-Outil web pour créer des visuels d’actualité aux formats Facebook, Instagram et statut WhatsApp : neuf modèles (Alerte, Bandeau, Une, Citation, Chiffre, Surligné, Duo, Dossier, Post), identité du média, légende prête à copier, export JPG en 1080 px et vidéos MP4.
+Outil web pour créer des visuels d’actualité aux formats Facebook, Instagram et statut WhatsApp : douze modèles (Alerte, Bandeau, Une, Citation, Chiffre, Surligné, Duo, Dossier, Post, Carte, Flash, Cadre), identité du média, légende prête à copier, export JPG en 1080 px et vidéos MP4.
 
 ## Assistant de rédaction
 

@@ -619,7 +619,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
   </div>
   <header class="top">
     <h1 class="mark">Générateur <span class="tag">Alerte Info.</span></h1>
-    <p>Colle ton texte&nbsp;: l’assistant le résume, choisit parmi neuf modèles et remplit le visuel, ou tout un carrousel. Export en 1080&nbsp;px prêt à publier.</p>
+    <p>Colle ton texte&nbsp;: l’assistant le résume, choisit parmi douze modèles et remplit le visuel, ou tout un carrousel. Export en 1080&nbsp;px prêt à publier.</p>
   </header>
 
   <main class="desk">
@@ -797,6 +797,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
           <label class="tpl"><input type="radio" name="tpl" id="tpl-duo" value="duo"><canvas data-tpl="duo" width="216" height="270" aria-hidden="true"></canvas><span>Duo</span></label>
           <label class="tpl"><input type="radio" name="tpl" id="tpl-dossier" value="dossier"><canvas data-tpl="dossier" width="216" height="270" aria-hidden="true"></canvas><span>Dossier</span></label>
           <label class="tpl"><input type="radio" name="tpl" id="tpl-post" value="post"><canvas data-tpl="post" width="216" height="270" aria-hidden="true"></canvas><span>Post</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-carte" value="carte"><canvas data-tpl="carte" width="216" height="270" aria-hidden="true"></canvas><span>Carte</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-flash" value="flash"><canvas data-tpl="flash" width="216" height="270" aria-hidden="true"></canvas><span>Flash</span></label>
+          <label class="tpl"><input type="radio" name="tpl" id="tpl-cadre" value="cadre"><canvas data-tpl="cadre" width="216" height="270" aria-hidden="true"></canvas><span>Cadre</span></label>
         </div>
         <p class="tpl-desc" id="tpl-desc"></p>
       </section>
@@ -804,7 +807,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       <section class="group" aria-labelledby="g-post">
         <h2 class="eyebrow" id="g-post">Contenu</h2>
 
-        <div class="field" data-tpl="alerte bandeau une citation chiffre surligne duo dossier">
+        <div class="field" data-tpl="alerte bandeau une citation chiffre surligne duo dossier carte flash cadre">
           <span class="label" id="photo-label">Photo</span>
           <div class="file-row">
             <input type="file" id="photo-input" class="sr-only" accept="image/*" aria-labelledby="photo-label">
@@ -885,7 +888,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
           <input type="text" id="cap2" maxlength="40" autocomplete="off">
         </div>
 
-        <div class="field" data-tpl="alerte bandeau une surligne">
+        <div class="field" data-tpl="alerte bandeau une surligne carte flash cadre">
           <label class="label" for="badge">Étiquette</label>
           <input type="text" id="badge" maxlength="24" autocomplete="off" spellcheck="false">
           <div class="chips" id="badge-presets">
@@ -899,7 +902,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
           <p class="hint">Laisse vide pour un visuel sans étiquette.</p>
         </div>
 
-        <div class="field" data-tpl="alerte bandeau une citation chiffre duo dossier">
+        <div class="field" data-tpl="alerte bandeau une citation chiffre duo dossier carte flash cadre">
           <label class="label" for="kicker">Rubrique <small>facultatif</small></label>
           <input type="text" id="kicker" maxlength="40" autocomplete="off" placeholder="Tchad · Politique">
           <p class="hint">S’affiche en petites capitales, ou dans la pastille rouge des modèles Duo et Dossier. Elle sert aussi à créer les hashtags de la légende.</p>
@@ -1065,7 +1068,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
         <p class="hint" id="vid-support" hidden></p>
       </section>
 
-      <section class="group" aria-labelledby="g-photo" data-tpl="alerte bandeau une citation chiffre surligne duo dossier">
+      <section class="group" aria-labelledby="g-photo" data-tpl="alerte bandeau une citation chiffre surligne duo dossier carte flash cadre">
         <h2 class="eyebrow" id="g-photo">Image</h2>
         <div class="field" id="target-field" hidden>
           <span class="label" id="target-label">Image à régler</span>
@@ -1157,7 +1160,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
           <p class="hint">Auto choisit la police qui va le mieux à chaque modèle.</p>
         </div>
 
-        <div class="field" data-tpl="alerte bandeau une surligne">
+        <div class="field" data-tpl="alerte bandeau une surligne carte flash cadre">
           <span class="label" id="bs-label">Style d’étiquette</span>
           <div class="seg" role="radiogroup" aria-labelledby="bs-label">
             <label><input type="radio" name="badge-style" id="bs-plain" value="plain"><span>Fond blanc</span></label>
@@ -1173,7 +1176,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
           </div>
         </div>
 
-        <div class="field" data-tpl="une duo dossier" data-car="1">
+        <div class="field" data-tpl="une duo dossier cadre" data-car="1">
           <span class="label" id="panel-label">Panneau <small id="panel-note"></small></span>
           <div class="seg" role="radiogroup" aria-labelledby="panel-label">
             <label><input type="radio" name="panel" id="panel-dark" value="dark"><span>Sombre</span></label>
@@ -1274,7 +1277,10 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     surligne: { font: 'grotesk', desc: 'Texte posé dans des boîtes, très lisible sur mobile.', draw: drawSurligne },
     duo:      { font: 'grotesk', desc: 'Deux photos côte à côte avec leurs noms, pour relier ou opposer deux personnes.', draw: drawDuo },
     dossier:  { font: 'grotesk', desc: 'Deux photos, une citation et un document à l’appui, pour les sujets qui demandent des preuves.', draw: drawDossier },
-    post:     { font: 'grotesk', desc: 'Ta déclaration en format publication : photo de profil, nom, identifiant et ton texte, comme sur les réseaux.', draw: drawPost }
+    post:     { font: 'grotesk', desc: 'Ta déclaration en format publication : photo de profil, nom, identifiant et ton texte, comme sur les réseaux.', draw: drawPost },
+    carte:    { font: 'grotesk', desc: 'Moderne : la photo plein cadre et le texte dans une carte sombre aux coins arrondis.', draw: drawCarte },
+    flash:    { font: 'condensed', desc: 'Moderne : la photo baignée dans ta couleur, grand titre en capitales et barre d’accent.', draw: drawFlash },
+    cadre:    { font: 'serif', desc: 'Moderne : la photo dans un cadre arrondi sur fond uni, le titre en dessous façon magazine.', draw: drawCadre }
   };
   const famFor = (tpl) => FAM[state.font === 'auto' ? TPL[tpl].font : state.font];
   const badgeFam = (fam) => (fam === FAM.condensed ? BADGE_COND : SANS(800));
@@ -2316,6 +2322,174 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     return fit;
   }
 
+  /* ---------- modèles modernes ---------- */
+  /* Carte : la photo plein cadre, le texte dans une carte sombre aux coins arrondis qui flotte en bas */
+  function drawCarte(c, E) {
+    const { W, H, f } = E;
+    photoLayer(c, E, 'p1', { x: 0, y: 0, w: W, h: H });
+    const fam = famFor('carte');
+    const cx = 36;
+    const pad = 46;
+    const cw = W - 2 * cx;
+    const x = cx + pad;
+    const maxW = cw - 2 * pad;
+    const kick = kickerText();
+    const meta = metaText();
+    const handle = handleText();
+    const hasMeta = !!(meta || handle);
+    const fit = fitText(c, state.title, { fam, max: 66 * fam.k, min: 34 * fam.k, maxW, maxH: H * f.blk * 0.92, lh: fam.lh + 0.02 });
+    const n = fit.lines.length;
+    c.font = fit.font;
+    const cap = capH(c, fit.px);
+    const textH = n ? cap + (n - 1) * fit.lh : 0;
+    const btxt = typo(state.badge.trim());
+    const g = btxt ? badgeGeom(c, btxt, badgeFam(fam), fam === FAM.condensed ? 50 : 44, maxW) : null;
+    const topPad = g ? Math.round(g.h / 2) + 34 : pad;
+    const kickH = kick ? 20 + 26 : 0;
+    const footH = hasMeta ? 38 + 30 : 0;
+    const cardH = Math.round(topPad + kickH + textH + footH + pad * 0.85);
+    const cardBottom = H - Math.max(36, f.bottom - 34);
+    const cardTop = cardBottom - cardH;
+    shade(c, E, cardTop - H * 0.22, (state.shade / 100) * 0.5);
+    drawBrand(c, E, M, f.top, { mode: 'outlined', color: state.brand, size: 46, maxW: W * 0.58 });
+    creditTopRight(c, E);
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,0.35)';
+    c.shadowBlur = 40;
+    c.shadowOffsetY = 14;
+    rrect(c, cx, cardTop, cw, cardH, 36);
+    c.fillStyle = 'rgba(13,15,20,0.82)';
+    c.fill();
+    c.restore();
+    rrect(c, cx + 1, cardTop + 1, cw - 2, cardH - 2, 35);
+    c.strokeStyle = 'rgba(255,255,255,0.16)';
+    c.lineWidth = 2;
+    c.stroke();
+    if (g) drawBadge(c, g, x, Math.round(cardTop - g.h / 2), state.badgeStyle);
+    else {
+      rrect(c, x, cardTop + 24, 84, 8, 4);
+      c.fillStyle = state.alert;
+      c.fill();
+    }
+    let y = cardTop + topPad;
+    if (kick) { drawKicker(c, E, kick, x, y + 20, { color: state.hl, size: 24 }); y += kickH; }
+    drawRich(c, E, fit, x, y + cap, { color: '#FFFFFF', hl: state.hl, fx: 'none' });
+    if (hasMeta) {
+      const fy = cardBottom - Math.round(pad * 0.85);
+      c.fillStyle = 'rgba(255,255,255,0.16)';
+      c.fillRect(x, fy - 38, maxW, 2);
+      drawFooter(c, E, meta, handle, x, x + maxW, fy, { color: 'rgba(255,255,255,0.8)', size: 22 });
+    }
+    return fit;
+  }
+  /* Flash : la photo baignée dans la couleur du média, un grand titre en capitales, une barre d'accent */
+  function drawFlash(c, E) {
+    const { W, H, f } = E;
+    photoLayer(c, E, 'p1', { x: 0, y: 0, w: W, h: H });
+    const fam = famFor('flash');
+    const bar = 12;
+    const x = M + bar + 26;
+    const maxW = W - M - x;
+    const bottom = H - f.bottom;
+    const meta = metaText();
+    const handle = handleText();
+    const hasMeta = !!(meta || handle);
+    const last = hasMeta ? bottom - 70 : bottom;
+    const fit = fitText(c, state.title.toLocaleUpperCase('fr-FR'), { fam, max: 80 * fam.k, min: 38 * fam.k, maxW, maxH: H * f.blk * 1.05, lh: fam.lh });
+    const n = fit.lines.length;
+    const first = last - (n - 1) * fit.lh;
+    c.font = fit.font;
+    const cap = capH(c, fit.px);
+    const titleTop = n ? first - cap : last;
+    let top = titleTop;
+    const kick = kickerText();
+    let kickBase = 0;
+    if (kick) { kickBase = Math.round(top - fit.px * 0.42); top = kickBase - 20; }
+    const btxt = typo(state.badge.trim());
+    const g = btxt ? badgeGeom(c, btxt, badgeFam(fam), fam === FAM.condensed ? 58 : 50, maxW) : null;
+    let badgeTop = 0;
+    if (g) { badgeTop = Math.round(top - 26 - g.h); top = badgeTop; }
+    /* voile dans la couleur du média */
+    const pg = inGrp('shade');
+    const rgb = hexToRgb(state.brand).map((v) => Math.round(v * 0.45)).join(',');
+    const hexA = (unused, al) => 'rgba(' + rgb + ',' + al.toFixed(3) + ')';
+    const deep = null;
+    const k = 0.45 + (state.shade / 100) * 0.5;
+    const g1 = c.createLinearGradient(0, 0, 0, H);
+    g1.addColorStop(0, hexA(deep, 0.28 * k));
+    g1.addColorStop(clamp((top - H * 0.2) / H, 0.05, 0.9), hexA(deep, 0.42 * k));
+    g1.addColorStop(1, hexA(deep, Math.min(0.98, 1.02 * k)));
+    c.fillStyle = g1;
+    c.fillRect(0, 0, W, H);
+    GRP = pg;
+    drawBrand(c, E, M, f.top, { mode: 'outlined', color: state.brand, size: 46, maxW: W * 0.58 });
+    creditTopRight(c, E);
+    /* barre d'accent le long du titre */
+    if (n) {
+      c.fillStyle = state.hl;
+      c.fillRect(M, titleTop - 4, bar, last - titleTop + 12);
+    }
+    if (g) drawBadge(c, g, x, badgeTop, state.badgeStyle);
+    if (kick) drawKicker(c, E, kick, x, kickBase, { color: '#FFFFFF', size: 24, shadow: true });
+    drawRich(c, E, fit, x, first, { color: '#FFFFFF', hl: state.hl, fx: 'none' });
+    if (hasMeta) {
+      c.fillStyle = 'rgba(255,255,255,0.3)';
+      c.fillRect(M, bottom - 40, W - 2 * M, 2);
+      drawFooter(c, E, meta, handle, M, W - M, bottom, { color: 'rgba(255,255,255,0.9)', size: 23 });
+    }
+    return fit;
+  }
+  /* Cadre : la photo dans un cadre arrondi, posée sur un fond uni, le titre en dessous comme dans un magazine */
+  function drawCadre(c, E) {
+    const { W, H, f } = E;
+    const P = panelColors(true);
+    c.fillStyle = P.bg;
+    c.fillRect(0, 0, W, H);
+    const fam = famFor('cadre');
+    const maxW = W - 2 * M;
+    const kick = kickerText();
+    const meta = metaText();
+    const handle = handleText();
+    const hasMeta = !!(meta || handle);
+    const fit = fitText(c, state.title, { fam, max: 68 * fam.k, min: 34 * fam.k, maxW, maxH: H * f.blk * 0.9, lh: fam.lh + 0.01 });
+    const n = fit.lines.length;
+    c.font = fit.font;
+    const cap = capH(c, fit.px);
+    const textH = n ? cap + (n - 1) * fit.lh : 0;
+    const bottom = H - f.bottom;
+    const footTop = hasMeta ? bottom - 60 : bottom;
+    const kickH = kick ? 20 + 24 : 0;
+    const textTop = Math.round(footTop - (hasMeta ? 30 : 0) - textH - kickH);
+    const b = drawBrand(c, E, M, f.top - 8, { mode: 'plain', color: P.fg, size: 40, maxW: W * 0.55, h: 84 });
+    const frameTop = Math.round(f.top - 8 + Math.max(b.h, 40) + 30);
+    const btxt = typo(state.badge.trim());
+    const g = btxt ? badgeGeom(c, btxt, badgeFam(fam), fam === FAM.condensed ? 50 : 44, maxW) : null;
+    const frameBottom = textTop - (g ? Math.round(g.h / 2) + 34 : 44);
+    const fx = Math.round(M * 0.6);
+    const R = { x: fx, y: frameTop, w: W - 2 * fx, h: Math.max(120, frameBottom - frameTop) };
+    c.save();
+    rrect(c, R.x, R.y, R.w, R.h, 40);
+    c.clip();
+    photoLayer(c, E, 'p1', R);
+    c.restore();
+    rrect(c, R.x + 1.5, R.y + 1.5, R.w - 3, R.h - 3, 39);
+    c.strokeStyle = P.rule;
+    c.lineWidth = 3;
+    c.stroke();
+    const cr = state.credit.trim();
+    if (cr) drawSmall(c, E, 'Photo' + NB + ': ' + typo(cr), R.x + R.w - 26, R.y + R.h - 24, { align: 'right', size: 22, color: 'rgba(255,255,255,0.9)', shadow: true, maxW: W * 0.4 });
+    if (g) drawBadge(c, g, M, Math.round(R.y + R.h - g.h / 2), state.badgeStyle);
+    let y = textTop;
+    if (kick) { drawKicker(c, E, kick, M, y + 20, { color: P.kick, size: 24 }); y += kickH; }
+    drawRich(c, E, fit, M, y + cap, { color: P.fg, hl: P.hl, fx: 'none' });
+    if (hasMeta) {
+      c.fillStyle = P.rule;
+      c.fillRect(M, footTop - 2, maxW, 2);
+      drawFooter(c, E, meta, handle, M, W - M, bottom - 14, { color: P.muted, size: 22 });
+    }
+    return fit;
+  }
+
   function panelColors(tinted) {
     if (state.panel === 'light') return { bg: '#FFFFFF', fg: '#111216', muted: 'rgba(17,18,22,0.62)', rule: 'rgba(17,18,22,0.14)', kick: state.alert, hl: state.alert };
     if (state.panel === 'brand') return { bg: state.brand, fg: '#FFFFFF', muted: 'rgba(255,255,255,0.8)', rule: 'rgba(255,255,255,0.26)', kick: state.hl, hl: state.hl };
@@ -3205,7 +3379,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
     const head = [];
     const badge = state.badge.trim().replace(/[.!\s]+$/, '');
     const kick = state.kicker.trim();
-    if (badge && ['alerte', 'bandeau', 'une', 'surligne'].indexOf(state.tpl) !== -1) head.push('🔴 ' + badge.toLocaleUpperCase('fr-FR'));
+    if (badge && ['alerte', 'bandeau', 'une', 'surligne', 'carte', 'flash', 'cadre'].indexOf(state.tpl) !== -1) head.push('🔴 ' + badge.toLocaleUpperCase('fr-FR'));
     if (kick) head.push(clean(kick).toLocaleUpperCase('fr-FR'));
     if (head.length) parts.push(head.join(' | '));
     const who = [state.author.trim(), state.role.trim()].filter(Boolean).map(clean).join(', ');
@@ -4473,7 +4647,7 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
      1. Claude dans l'artefact (capacité sample, sur le compte Claude de la personne) ;
      2. Claude par l'API avec une clé gardée sur l'appareil (site GitHub) ;
      3. le mode simple, sans IA, qui découpe le texte avec des règles. */
-  const TPL_NAMES = { alerte: 'Alerte', bandeau: 'Bandeau', une: 'Une', citation: 'Citation', chiffre: 'Chiffre', surligne: 'Surligné', duo: 'Duo', dossier: 'Dossier', post: 'Post' };
+  const TPL_NAMES = { alerte: 'Alerte', bandeau: 'Bandeau', une: 'Une', citation: 'Citation', chiffre: 'Chiffre', surligne: 'Surligné', duo: 'Duo', dossier: 'Dossier', post: 'Post', carte: 'Carte', flash: 'Flash', cadre: 'Cadre' };
   const BADGES = ['Alerte Info.', 'Dernière minute.', 'Urgent.', 'Exclusif.', 'Officiel.', 'Décryptage.'];
   const AI_CONF_KEY = 'generateur-alerte-info:ia';
   const AI_LAST_KEY = 'generateur-alerte-info:ia-dernier';
@@ -4793,6 +4967,9 @@ details.kit summary small { font: 500 12px/1 var(--font-mono); color: var(--mute
       '- "bandeau" : info très courte qui vient de tomber.',
       '- "alerte" : info importante portée par une photo forte. C’est le choix par défaut.',
       '- "une" : sujet de fond, analyse, portrait.',
+      '- "carte" : info du jour à présenter de façon moderne, photo forte et texte dans une carte.',
+      '- "flash" : info choc ou annonce à fort impact, titre court (80 caractères au plus) en capitales.',
+      '- "cadre" : portrait, hommage, culture, sujet posé à présenter façon magazine.',
       '- "surligne" : annonce ou explication qui se lit sans photo marquante.',
       '- "post" : le texte est une déclaration de l’auteur de la page lui-même, écrite à la première personne (son avis, un message à ses abonnés), à montrer comme une publication de réseau social.',
       'Propose aussi 2 autres modèles qui conviendraient (alternatives) et explique ton choix en une phrase (raison).',
